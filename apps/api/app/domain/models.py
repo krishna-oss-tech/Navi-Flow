@@ -239,6 +239,8 @@ class RouteCandidate(BaseModel):
     geometry: List[List[float]]
     roadSegmentIds: List[str]
     steps: List[RouteStep] = Field(default_factory=list)
+    vehicleComposition: Optional[Dict[str, Any]] = None
+    cctvObservations: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
 
 
 class TrafficScenario(BaseModel):

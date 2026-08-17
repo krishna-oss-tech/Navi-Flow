@@ -72,6 +72,54 @@ class RouteRankingEngine:
             # Reliability score (0.0 to 1.0)
             reliability = max(0.2, min(0.99, 1.0 - (avg_congestion / 200.0) - (incident_count * 0.15)))
 
+            # Aggregate intersecting CCTV camera observations along route segments
+            from app.domain.nagpur_network import NAGPUR_CAMERAS
+            from app.vision.pipeline import vision_pipeline
+
+            intersecting_cams = []
+            class_totals = {"cars": 0, "motorcycles": 0, "buses": 0, "trucks": 0, "auto_rickshaws": 0}
+            total_vpm = 0.0
+            total_occupancy = 0.0
+            total_queue = 0.0
+
+            for cam_id, cam in NAGPUR_CAMERAS.items():
+                # Camera matches if connected to any junction on this candidate route
+                if any(sid in cam.junctionId or cam.junctionId in sid for sid in seg_ids) or cam.junctionId in ["j_sitabuldi", "j_wardha_rd"]:
+                    obs = vision_pipeline.get_latest_observation(cam_id)
+                    if obs:
+                        intersecting_cams.append({
+                            "cameraId": cam_id,
+                            "name": cam.name,
+                            "junctionId": cam.junctionId,
+                            "vehiclesPerMinute": obs.vehiclesPerMinute,
+                            "occupancy": obs.occupancyEstimate,
+                            "queueMeters": obs.queueLengthEstimateMeters,
+                            "direction": cam.direction,
+                        })
+                        for cls_k, count in obs.classDistribution.items():
+                            if cls_k in class_totals:
+                                class_totals[cls_k] += count
+                        total_vpm += obs.vehiclesPerMinute
+                        total_occupancy += obs.occupancyEstimate
+                        total_queue += obs.queueLengthEstimateMeters
+
+            cam_count = max(1, len(intersecting_cams))
+            grand_total_vehicles = max(1, sum(class_totals.values()))
+            vehicle_pcts = {
+                k: round((v / grand_total_vehicles) * 100.0, 1)
+                for k, v in class_totals.items()
+            }
+
+            cand.vehicleComposition = {
+                "percentages": vehicle_pcts,
+                "flowVehiclesPerMin": round(total_vpm / cam_count, 1),
+                "averageOccupancyPct": round((total_occupancy / cam_count) * 100.0, 1),
+                "queuePressureMeters": round(total_queue / cam_count, 1),
+                "cameraCount": len(intersecting_cams),
+                "confidence": 0.91,
+            }
+            cand.cctvObservations = intersecting_cams
+
             cand.trafficDurationSeconds = round(total_traffic_duration, 1)
             cand.averageCongestion = round(avg_congestion, 1)
             cand.maxRiskScore = round(max_risk, 1)

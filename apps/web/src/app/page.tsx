@@ -10,7 +10,9 @@ import { CopilotModal } from "@/components/CopilotModal";
 import { SimulationModal } from "@/components/SimulationModal";
 import { AuditModal } from "@/components/AuditModal";
 import { RoutesPanel } from "@/components/RoutesPanel";
-import { NetworkSummary, RouteCandidate } from "@/types";
+import { SystemStatusDrawer } from "@/components/SystemStatusDrawer";
+import { IncidentCenterDrawer } from "@/components/IncidentCenterDrawer";
+import { NetworkSummary, RouteCandidate, Incident } from "@/types";
 
 export default function DashboardPage() {
   const [data, setData] = useState<NetworkSummary | null>(null);
@@ -18,10 +20,13 @@ export default function DashboardPage() {
   const [selectedJunctionId, setSelectedJunctionId] = useState<string | null>("j_sitabuldi");
   const [activeRoute, setActiveRoute] = useState<RouteCandidate | null>(null);
 
-  // Modals
+  // Modals & Drawers
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
   const [isSimulationOpen, setIsSimulationOpen] = useState(false);
   const [isAuditOpen, setIsAuditOpen] = useState(false);
+  const [isSystemStatusOpen, setIsSystemStatusOpen] = useState(false);
+  const [isIncidentsOpen, setIsIncidentsOpen] = useState(false);
+  const [simulationTargetJunction, setSimulationTargetJunction] = useState<string | null>(null);
 
   // Layer toggles
   const [activeLayers, setActiveLayers] = useState({
@@ -169,6 +174,20 @@ export default function DashboardPage() {
     }
   };
 
+  const handleSelectIncident = (inc: Incident) => {
+    // Find matching junction for incident
+    if (inc.affectedRoadIds.length > 0) {
+      const junctionId = inc.affectedRoadIds[0].includes("wardha") ? "j_wardha_rd" : "j_sitabuldi";
+      setSelectedJunctionId(junctionId);
+    }
+  };
+
+  const handleSimulateIncident = (inc: Incident) => {
+    const junctionId = inc.affectedRoadIds[0]?.includes("wardha") ? "j_wardha_rd" : "j_sitabuldi";
+    setSimulationTargetJunction(junctionId);
+    setIsSimulationOpen(true);
+  };
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#070a0f] text-slate-100 font-sans">
       {/* ─── Top Command Strip ─── */}
@@ -176,9 +195,14 @@ export default function DashboardPage() {
         data={data}
         onTriggerDemo={handleTriggerDemo}
         onResetDemo={handleResetDemo}
-        onOpenSimulation={() => setIsSimulationOpen(true)}
+        onOpenSimulation={() => {
+          setSimulationTargetJunction(selectedJunctionId || "j_sitabuldi");
+          setIsSimulationOpen(true);
+        }}
         onOpenCopilot={() => setIsCopilotOpen(true)}
         onOpenAudit={() => setIsAuditOpen(true)}
+        onOpenSystemStatus={() => setIsSystemStatusOpen(true)}
+        onOpenIncidents={() => setIsIncidentsOpen(true)}
         activeLayers={activeLayers}
         onToggleLayer={handleToggleLayer}
       />
@@ -191,7 +215,11 @@ export default function DashboardPage() {
           onSelectTab={(tab) => {
             setActiveTab(tab);
             if (tab === "audit") setIsAuditOpen(true);
-            if (tab === "simulation") setIsSimulationOpen(true);
+            if (tab === "simulation") {
+              setSimulationTargetJunction(selectedJunctionId || "j_sitabuldi");
+              setIsSimulationOpen(true);
+            }
+            if (tab === "incidents") setIsIncidentsOpen(true);
           }}
           data={data}
         />
@@ -208,7 +236,7 @@ export default function DashboardPage() {
 
           {/* Floating Route Intelligence Panel */}
           {activeTab === "routes" && (
-            <div className="absolute top-4 left-4 w-[360px] glass-raised rounded-2xl shadow-panel z-30 max-h-[80vh] overflow-y-auto animate-slide-in-left">
+            <div className="absolute top-4 left-4 w-[380px] glass-raised rounded-2xl shadow-panel z-30 max-h-[82vh] overflow-y-auto animate-slide-in-left">
               <RoutesPanel
                 onSelectRoute={(route) => setActiveRoute(route)}
                 activeRoute={activeRoute}
@@ -216,7 +244,7 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Floating Bottom Metrics */}
+          {/* Floating Bottom Metrics Bar */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 animate-slide-in-up">
             <BottomMetrics metrics={data?.metrics} />
           </div>
@@ -231,21 +259,33 @@ export default function DashboardPage() {
           onOverrideRecommendation={handleOverrideRecommendation}
           onRejectRecommendation={handleRejectRecommendation}
           onSimulateJunction={(jId) => {
-            setSelectedJunctionId(jId);
+            setSimulationTargetJunction(jId);
             setIsSimulationOpen(true);
           }}
         />
       </div>
 
-      {/* ─── Dialog Modals ─── */}
+      {/* ─── Dialog Modals & Drawers ─── */}
       <CopilotModal isOpen={isCopilotOpen} onClose={() => setIsCopilotOpen(false)} />
       <SimulationModal
         isOpen={isSimulationOpen}
         onClose={() => setIsSimulationOpen(false)}
         data={data}
-        targetJunctionId={selectedJunctionId}
+        targetJunctionId={simulationTargetJunction || selectedJunctionId}
       />
       <AuditModal isOpen={isAuditOpen} onClose={() => setIsAuditOpen(false)} />
+      <SystemStatusDrawer
+        isOpen={isSystemStatusOpen}
+        onClose={() => setIsSystemStatusOpen(false)}
+        data={data}
+      />
+      <IncidentCenterDrawer
+        isOpen={isIncidentsOpen}
+        onClose={() => setIsIncidentsOpen(false)}
+        incidents={data?.incidents || []}
+        onSelectIncident={handleSelectIncident}
+        onSimulateIncident={handleSimulateIncident}
+      />
     </div>
   );
 }

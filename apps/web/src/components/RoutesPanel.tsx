@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Navigation, Sliders, Shield, Zap, Check } from "lucide-react";
+import { Navigation, Sliders, Eye, Car, Bike, Bus, Truck, Activity, ShieldCheck } from "lucide-react";
 import { RouteCandidate } from "@/types";
 
 interface RoutesPanelProps {
@@ -69,6 +69,8 @@ export const RoutesPanel: React.FC<RoutesPanelProps> = ({ onSelectRoute, activeR
     }
   };
 
+  const comp = activeRoute?.vehicleComposition;
+
   return (
     <div className="p-4 space-y-4 text-xs select-none">
       {/* Header */}
@@ -78,7 +80,7 @@ export const RoutesPanel: React.FC<RoutesPanelProps> = ({ onSelectRoute, activeR
           <h3 className="font-bold text-white text-sm">Route Intelligence</h3>
         </div>
         <p className="text-[10px] text-slate-500">
-          Multi-objective ranking with real-time traffic awareness
+          Multi-objective ranking with real-time telemetry &amp; CCTV fusion
         </p>
       </div>
 
@@ -100,11 +102,11 @@ export const RoutesPanel: React.FC<RoutesPanelProps> = ({ onSelectRoute, activeR
           className="w-full mt-2 py-2 rounded-lg bg-accent-blue/15 hover:bg-accent-blue/25 text-accent-blue font-bold text-[11px] flex items-center justify-center gap-1.5 border border-accent-blue/20 transition-all duration-150 active:scale-[0.98]"
         >
           <Sliders className="w-3.5 h-3.5" />
-          {loading ? "Ranking..." : "Calculate Routes"}
+          {loading ? "Computing Network Ranks..." : "Rank Route Candidates"}
         </button>
       </div>
 
-      {/* Route Candidates */}
+      {/* Route Candidates List */}
       <div className="space-y-2">
         {routes.map((r) => {
           const isSelected = activeRoute?.routeId === r.routeId;
@@ -118,7 +120,7 @@ export const RoutesPanel: React.FC<RoutesPanelProps> = ({ onSelectRoute, activeR
                 cfg.accent
               } ${
                 isSelected
-                  ? "bg-accent-blue/8 border border-l-[3px] border-accent-blue/30 shadow-glow-blue"
+                  ? "bg-accent-blue/8 border border-l-[3px] border-accent-blue/30 shadow-glow-blue ring-1 ring-accent-blue/30"
                   : "bg-surface border border-l-[3px] border-border-subtle hover:bg-surface-raised"
               }`}
             >
@@ -151,18 +153,96 @@ export const RoutesPanel: React.FC<RoutesPanelProps> = ({ onSelectRoute, activeR
                 </div>
                 <div>
                   <span className="text-slate-500">Risk</span>
-                  <div className="text-red-400 font-bold">{Math.round(r.maxRiskScore)}</div>
+                  <div className="text-red-400 font-bold">{Math.round(r.maxRiskScore)}/100</div>
                 </div>
               </div>
 
               {/* Recommendation Reason */}
-              <div className="mt-2 text-[9px] text-accent-blue/80 leading-tight">
+              <div className="mt-2 text-[10px] text-accent-blue/90 leading-tight">
                 {r.recommendationReason}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Route Traffic & Vehicle Composition (Requirement #21) */}
+      {comp && comp.percentages && (
+        <div className="p-3.5 rounded-xl bg-surface border border-border-subtle space-y-2.5 animate-slide-in-up">
+          <div className="flex items-center justify-between text-[10px] font-bold text-slate-300 uppercase tracking-wider">
+            <span className="flex items-center gap-1.5 text-accent-blue">
+              <Eye className="w-3.5 h-3.5" /> Route Vehicle Composition
+            </span>
+            <span className="font-mono text-[9px] text-slate-500">
+              {comp.cameraCount} CCTV Cam(s) Fused
+            </span>
+          </div>
+
+          {/* Vehicle Class Distribution Progress Bars */}
+          <div className="grid grid-cols-2 gap-2 text-[10px]">
+            <div className="space-y-1">
+              <div className="flex justify-between text-slate-400">
+                <span className="flex items-center gap-1"><Bike className="w-3 h-3 text-sky-400" /> Two-Wheelers</span>
+                <span className="font-mono font-bold text-white">{comp.percentages.motorcycles}%</span>
+              </div>
+              <div className="w-full h-1 bg-surface-overlay rounded-full overflow-hidden">
+                <div className="h-full bg-sky-400 rounded-full" style={{ width: `${comp.percentages.motorcycles}%` }} />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-slate-400">
+                <span className="flex items-center gap-1"><Car className="w-3 h-3 text-emerald-400" /> Cars</span>
+                <span className="font-mono font-bold text-white">{comp.percentages.cars}%</span>
+              </div>
+              <div className="w-full h-1 bg-surface-overlay rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${comp.percentages.cars}%` }} />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-slate-400">
+                <span className="flex items-center gap-1"><Bus className="w-3 h-3 text-amber-400" /> Buses</span>
+                <span className="font-mono font-bold text-white">{comp.percentages.buses}%</span>
+              </div>
+              <div className="w-full h-1 bg-surface-overlay rounded-full overflow-hidden">
+                <div className="h-full bg-amber-400 rounded-full" style={{ width: `${comp.percentages.buses}%` }} />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-slate-400">
+                <span className="flex items-center gap-1"><Truck className="w-3 h-3 text-rose-400" /> Trucks/Autos</span>
+                <span className="font-mono font-bold text-white">
+                  {(comp.percentages.trucks + (comp.percentages.auto_rickshaws || 0)).toFixed(1)}%
+                </span>
+              </div>
+              <div className="w-full h-1 bg-surface-overlay rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-rose-400 rounded-full"
+                  style={{ width: `${comp.percentages.trucks + (comp.percentages.auto_rickshaws || 0)}%` }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Micro Telemetry Readout */}
+          <div className="pt-2 border-t border-border-subtle grid grid-cols-3 gap-2 text-[9px] font-mono text-slate-400">
+            <div>
+              <span>Flow Rate</span>
+              <div className="text-slate-200 font-bold">{comp.flowVehiclesPerMin} <span className="text-[8px] text-slate-500">vpm</span></div>
+            </div>
+            <div>
+              <span>Occupancy</span>
+              <div className="text-amber-400 font-bold">{comp.averageOccupancyPct}%</div>
+            </div>
+            <div>
+              <span>Queue Est.</span>
+              <div className="text-rose-400 font-bold">{comp.queuePressureMeters}m</div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

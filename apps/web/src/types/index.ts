@@ -169,6 +169,29 @@ export interface RouteCandidate {
   recommendationReason: string;
   geometry: [number, number][];
   roadSegmentIds: string[];
+  vehicleComposition?: {
+    percentages: {
+      cars: number;
+      motorcycles: number;
+      buses: number;
+      trucks: number;
+      auto_rickshaws: number;
+    };
+    flowVehiclesPerMin: number;
+    averageOccupancyPct: number;
+    queuePressureMeters: number;
+    cameraCount: number;
+    confidence: number;
+  };
+  cctvObservations?: Array<{
+    cameraId: string;
+    name: string;
+    junctionId: string;
+    vehiclesPerMinute: number;
+    occupancy: number;
+    queueMeters: number;
+    direction: string;
+  }>;
 }
 
 export interface SystemMetrics {
