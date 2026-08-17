@@ -1,31 +1,60 @@
-# NAVI-FLOW: Showcase Demo Script & Sequence
+# NAVI-FLOW: Hackathon Judge Live Demonstration Guide
 
-## Live Demonstration Flow for Judges
+## ⏱ 3-Minute Deterministic Presentation Script
 
-### Step 1: Initial Baseline Health
-1. Open the dashboard at `http://localhost:3000`.
-2. Observe the Nagpur road network with green/amber corridors and low baseline risk scores across Sitabuldi, Wardha Road, and Central Avenue.
-3. Observe bottom metrics ticker showing live network average speed (~42 km/h), 0 critical chokepoints, and available police reserves.
+This sequence demonstrates the complete causal chain of NAVI-FLOW without needing a terminal.
 
-### Step 2: Inject Collision Disruption
-1. Click the glowing red **"Sitabuldi Collision Demo"** button on the top header.
-2. Observe:
-   - Sitabuldi Interchange / Variety Sq immediately transitions to **CRITICAL Risk (92/100)** with a pulsing neon red halo.
-   - Upstream queues propagate along Wardha Road and Central Avenue.
-   - The top banner switches to **"SIMULATED INCIDENT ACTIVE"**.
+---
 
-### Step 3: Inspect Multi-Factor Diagnosis & AI Copilot
-1. Click on the Sitabuldi junction marker.
-2. In the right Context Panel, examine the multi-factor breakdown (Incident: 90, Congestion: 85, Centrality: 95) and the automated diagnosis.
-3. Open the **AI Copilot** and ask: *"Why is Sitabuldi critical?"*
-4. Inspect the grounded, hallucination-free telemetry response.
+### Step 1: Open Operations Center (0:00 - 0:30)
+1. Navigate to `http://localhost:3000`.
+2. **Key Talking Points**:
+   - "This is **NAVI-FLOW**, the real-time traffic intelligence and decision support platform for Nagpur."
+   - "Notice the live map centered on Zero Mile Nagpur with real-time TomTom telemetry fused with Edge CCTV observations."
+   - "The top bar indicates `LIVE TELEMETRY` with synced IST clock. All 5 core corridors (Sitabuldi, Wardha Rd, Central Ave, Dharampeth, Ring Rd) are green/amber."
+3. **Action**: Click the **Basemap Selector** in the top right of the map (`DARK` → `SATELLITE` → `STANDARD`) to prove raster satellite capabilities.
 
-### Step 4: Constrained Police Optimization & Human-in-the-Loop
-1. Inspect the generated OR-Tools police dispatch card recommending officer deployment with ETA and projected risk reduction (-28.5 pts).
-2. Click **"Accept"** or **"Override"** (enter reason e.g. "East corridor bypass").
-3. Observe that the officer is dispatched, the risk reduces on the map, and the decision is permanently recorded in the **Audit Ledger**.
+---
 
-### Step 5: Route Intelligence & What-If Simulation
-1. Switch to the **Route Ranking** tab.
-2. Click **"Calculate & Rank Routes"** to observe multi-objective scoring diverting traffic around Sitabuldi onto North Ambazari / Great Nag Road.
-3. Open **What-If Sim** and inspect the Before vs After comparative metrics.
+### Step 2: Inject Collision Disruption (0:30 - 1:00)
+1. **Action**: Click the **"Demo Collision"** button in the top command header.
+2. **System Response**:
+   - Header shifts to `INCIDENT ACTIVE` with blinking red alert.
+   - **Sitabuldi Junction** turns red (`CRITICAL RISK: 92/100`), pulsing with an animated hazard diamond.
+   - The **Junction Intelligence Drawer** slides open on the right showing:
+     - Multi-factor breakdown: *Incident Impact: 95*, *Congestion: 84*, *Centrality: 88*.
+     - Diagnostic explanation: *"Severe bottleneck due to multi-vehicle accident with 2 blocked lanes."*
+
+---
+
+### Step 3: Route Intelligence & Vehicle Composition (1:00 - 1:45)
+1. **Action**: Click the **Routes icon** on the left icon bar.
+2. **Action**: Click **"Rank Route Candidates"** (from Rahate Colony to Agrasen Sq).
+3. **System Response**:
+   - The engine ranks 3 alternatives using multi-objective optimization:
+     - `RECOMMENDED`: Diverts via Dharampeth corridor (avoids Sitabuldi bottleneck).
+     - `FASTEST`: Passes close to the bottleneck.
+     - `LOW_RISK_ALTERNATIVE`: Outer bypass corridor.
+   - The selected route draws the highlighted path and glow on the map.
+   - **Route Vehicle Composition** displays live CCTV aggregation: *45% Two-Wheelers*, *25% Cars*, *18% Auto-Rickshaws*, *8% Buses*, *4% Trucks*, with flow rate and queue pressure.
+
+---
+
+### Step 4: Constrained Police Optimization & Human Decision (1:45 - 2:20)
+1. **Action**: View the **OR-Tools Police Dispatch Card** in the right drawer.
+2. **System Response**:
+   - Recommends: `Inspector Rajesh Sharma` → Sitabuldi.
+   - Displays: `ETA: 4.2 min`, `Expected Benefit: -18 Risk Points`.
+3. **Action**: Click **"Accept"** (or test "Override").
+4. **Result**: Confirmation toast appears: `✓ Dispatch recommendation accepted & logged to audit ledger.`
+
+---
+
+### Step 5: What-If Simulation & Before/After Validation (2:20 - 3:00)
+1. **Action**: Click **"Simulate"** in the top bar → click **"Execute Simulation"**.
+2. **System Response**:
+   - Runs graph shockwave diffusion and displays Before vs After comparison cards:
+     - *Baseline ETA: 18.2 min → Disrupted ETA: 28.4 min (+56% delay)*.
+     - *Police Recovery: -24% risk recovery*.
+     - *Affected Corridors: Sitabuldi Interchange, Wardha Road Connector*.
+3. **Action**: Click **"Audit"** in the header to show the immutable cryptographically sequenced event trail documenting every operator decision.
