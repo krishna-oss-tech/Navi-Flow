@@ -1,0 +1,14 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+pydantic>=2.10.0
+pydantic-settings>=2.6.0
+httpx>=0.28.0
+shapely>=2.0.6
+numpy>=2.1.0
+ortools>=9.11.4210
+websockets>=13.1
+python-dotenv>=1.0.1
+pytest>=8.3.0
+pytest-asyncio>=0.24.0
+pytest-mock>=3.14.0
+opencv-python-headless>=4.10.0.84

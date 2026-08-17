@@ -1,0 +1,31 @@
+{
+  "benchmarkName": "Nagpur Central Corridor Disruption Benchmark",
+  "timestamp": "2026-08-17 06:45:46Z",
+  "scenario": "Sitabuldi Severe Disruption Benchmark",
+  "metrics": {
+    "meanTravelTimeSeconds": {
+      "unmanaged": 216.1,
+      "naviflowOptimized": 155.6,
+      "improvementPct": 28.0
+    },
+    "totalNetworkDelaySeconds": {
+      "unmanaged": 992.4,
+      "naviflowOptimized": 635.1,
+      "improvementPct": 36.0
+    },
+    "chokepointRiskScore": {
+      "unmanaged": 90.2,
+      "naviflowOptimized": 67.2,
+      "riskReductionPoints": 23.0
+    },
+    "criticalJunctionsCount": {
+      "unmanaged": 2,
+      "naviflowOptimized": 1
+    },
+    "policeDispatch": {
+      "officerAssigned": "Constable Vikas Wankhede",
+      "estimatedArrivalMinutes": 2.0,
+      "responseGapResolved": true
+    }
+  }
+}
