@@ -2,76 +2,60 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
-import { NetworkSummary, RouteCandidate } from "@/types";
-import { Layers, Globe, Moon, Sun, Camera as CameraIcon } from "lucide-react";
-
-export type BasemapMode = "DARK" | "STANDARD" | "SATELLITE" | "TRAFFIC";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { NetworkSummary, RouteCandidate, LocationPlace } from "@/types";
 
 interface MapViewerProps {
   data: NetworkSummary | null;
   selectedJunctionId: string | null;
   onSelectJunction: (junctionId: string) => void;
-  onSelectCamera?: (cameraId: string) => void;
-  activeRoute: RouteCandidate | null;
   activeLayers: {
     traffic: boolean;
-    risk: boolean;
     incidents: boolean;
     police: boolean;
     cameras: boolean;
+    risk: boolean;
     routes: boolean;
   };
+  activeRoute?: RouteCandidate | null;
+  allRoutes?: RouteCandidate[];
+  originPlace?: LocationPlace | null;
+  destPlace?: LocationPlace | null;
+  onSelectRoute?: (route: RouteCandidate) => void;
+  onSelectCamera?: (cameraId: string) => void;
 }
+
+type BasemapMode = "DARK" | "STANDARD" | "SATELLITE";
 
 const BASEMAP_CONFIG: Record<
   BasemapMode,
-  { tiles: string[]; maxBrightness: number; contrast: number; saturation: number; label: string; icon: any }
+  { tiles: string[]; maxBrightness: number; contrast: number; saturation: number }
 > = {
   DARK: {
     tiles: [
-      "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-      "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-      "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+      "https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png",
+      "https://b.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png",
     ],
-    maxBrightness: 0.55,
-    contrast: 0.2,
-    saturation: -0.3,
-    label: "Dark Mode",
-    icon: Moon,
+    maxBrightness: 0.9,
+    contrast: 0.15,
+    saturation: -0.2,
   },
   STANDARD: {
     tiles: [
-      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
       "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
     ],
-    maxBrightness: 0.95,
-    contrast: 0.05,
+    maxBrightness: 1.0,
+    contrast: 0.0,
     saturation: 0.0,
-    label: "Standard OSM",
-    icon: Sun,
   },
   SATELLITE: {
     tiles: [
-      process.env.NEXT_PUBLIC_SATELLITE_TILE_URL ||
-        "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     ],
     maxBrightness: 1.0,
     contrast: 0.1,
-    saturation: 0.05,
-    label: "Satellite Imagery",
-    icon: Globe,
-  },
-  TRAFFIC: {
-    tiles: [
-      "https://a.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}@2x.png",
-      "https://b.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}@2x.png",
-    ],
-    maxBrightness: 0.65,
-    contrast: 0.25,
-    saturation: -0.4,
-    label: "Traffic Focused",
-    icon: Layers,
+    saturation: 0.1,
   },
 };
 
@@ -79,9 +63,13 @@ export const MapViewer: React.FC<MapViewerProps> = ({
   data,
   selectedJunctionId,
   onSelectJunction,
-  onSelectCamera,
-  activeRoute,
   activeLayers,
+  activeRoute,
+  allRoutes = [],
+  originPlace,
+  destPlace,
+  onSelectRoute,
+  onSelectCamera,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -89,11 +77,9 @@ export const MapViewer: React.FC<MapViewerProps> = ({
   const [basemapMode, setBasemapMode] = useState<BasemapMode>("DARK");
   const [isStyleLoaded, setIsStyleLoaded] = useState(false);
 
-  // Initialize MapLibre GL JS
+  // Initialize MapLibre
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
-
-    const initialConfig = BASEMAP_CONFIG[basemapMode];
+    if (!mapContainer.current) return;
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
@@ -102,9 +88,9 @@ export const MapViewer: React.FC<MapViewerProps> = ({
         sources: {
           "basemap-source": {
             type: "raster",
-            tiles: initialConfig.tiles,
+            tiles: BASEMAP_CONFIG.DARK.tiles,
             tileSize: 256,
-            attribution: "© OpenStreetMap contributors © CARTO © Esri",
+            attribution: "© OpenStreetMap © CARTO",
           },
         },
         layers: [
@@ -113,29 +99,30 @@ export const MapViewer: React.FC<MapViewerProps> = ({
             type: "raster",
             source: "basemap-source",
             paint: {
-              "raster-brightness-max": initialConfig.maxBrightness,
-              "raster-contrast": initialConfig.contrast,
-              "raster-saturation": initialConfig.saturation,
+              "raster-brightness-max": 0.9,
+              "raster-contrast": 0.15,
+              "raster-saturation": -0.2,
             },
           },
         ],
       },
-      center: [79.0834, 21.142], // Nagpur Zero Mile
-      zoom: 13.6,
-      pitch: 38,
-      bearing: -10,
+      center: [79.0882, 21.1458], // Nagpur Center (Zero Mile)
+      zoom: 13.2,
+      pitch: 42,
+      bearing: -15,
+      antialias: true,
     });
-
-    map.current.addControl(
-      new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }),
-      "top-right"
-    );
 
     map.current.on("load", () => {
       if (!map.current) return;
 
-      // Add GeoJSON sources for Roads & Routes
+      // Sources
       map.current.addSource("roads-source", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.current.addSource("multi-routes-source", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
@@ -145,58 +132,99 @@ export const MapViewer: React.FC<MapViewerProps> = ({
         data: { type: "FeatureCollection", features: [] },
       });
 
-      // Road outer glow layer
+      // Road glow & core layers
       map.current.addLayer({
         id: "roads-glow",
         type: "line",
         source: "roads-source",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-width": 10,
+          "line-width": 9,
           "line-blur": 4,
-          "line-opacity": 0.4,
+          "line-opacity": 0.35,
           "line-color": ["get", "color"],
         },
       });
 
-      // Road core line layer
       map.current.addLayer({
         id: "roads-core",
         type: "line",
         source: "roads-source",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-width": 4,
+          "line-width": 3.8,
           "line-color": ["get", "color"],
           "line-opacity": 0.92,
         },
       });
 
-      // Route highlight outer glow
+      // Multi-Route Alternative lines (distinguishable hierarchy)
+      map.current.addLayer({
+        id: "multi-routes-glow",
+        type: "line",
+        source: "multi-routes-source",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-width": ["get", "glowWidth"],
+          "line-blur": 5,
+          "line-color": ["get", "color"],
+          "line-opacity": ["get", "glowOpacity"],
+        },
+      });
+
+      map.current.addLayer({
+        id: "multi-routes-line",
+        type: "line",
+        source: "multi-routes-source",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-width": ["get", "lineWidth"],
+          "line-color": ["get", "color"],
+          "line-opacity": 0.95,
+        },
+      });
+
+      // Route highlight outer glow for active route
       map.current.addLayer({
         id: "route-glow",
         type: "line",
         source: "route-source",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-width": 14,
-          "line-blur": 6,
-          "line-color": "#38bdf8",
-          "line-opacity": 0.45,
+          "line-width": 16,
+          "line-blur": 7,
+          "line-color": "#00f2ff",
+          "line-opacity": 0.5,
         },
       });
 
-      // Route highlight core line
       map.current.addLayer({
         id: "route-highlight",
         type: "line",
         source: "route-source",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-width": 5.5,
-          "line-color": "#38bdf8",
-          "line-opacity": 0.98,
+          "line-width": 6.5,
+          "line-color": "#00f2ff",
+          "line-opacity": 1.0,
         },
+      });
+
+      // Click on candidate routes
+      map.current.on("click", "multi-routes-line", (e) => {
+        if (!e.features || e.features.length === 0) return;
+        const clickedId = e.features[0].properties?.id;
+        const matched = allRoutes.find((r) => r.routeId === clickedId);
+        if (matched) {
+          onSelectRoute?.(matched);
+        }
+      });
+
+      map.current.on("mouseenter", "multi-routes-line", () => {
+        if (map.current) map.current.getCanvas().style.cursor = "pointer";
+      });
+      map.current.on("mouseleave", "multi-routes-line", () => {
+        if (map.current) map.current.getCanvas().style.cursor = "";
       });
 
       setIsStyleLoaded(true);
@@ -283,14 +311,72 @@ export const MapViewer: React.FC<MapViewerProps> = ({
     }
   }, [data, activeLayers.traffic]);
 
-  // Update active route line
+  // Update Multi-Route Candidates on Map
   useEffect(() => {
     if (!map.current) return;
-    const source = map.current.getSource("route-source") as maplibregl.GeoJSONSource;
-    if (!source) return;
+    const multiSource = map.current.getSource("multi-routes-source") as maplibregl.GeoJSONSource;
+    const activeSource = map.current.getSource("route-source") as maplibregl.GeoJSONSource;
 
-    if (activeRoute && activeLayers.routes) {
-      source.setData({
+    if (!multiSource || !activeSource) return;
+
+    if (!activeLayers.routes || allRoutes.length === 0) {
+      multiSource.setData({ type: "FeatureCollection", features: [] });
+      activeSource.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
+
+    // Build features for all alternative routes
+    const features = allRoutes.map((r, idx) => {
+      const isSelected = activeRoute?.routeId === r.routeId;
+      let color = "#64748b"; // Muted fallback
+      let lineWidth = 3.5;
+      let glowWidth = 8;
+      let glowOpacity = 0.2;
+
+      if (r.classification === "RECOMMENDED") {
+        color = "#00f2ff"; // Bright Cyan
+        lineWidth = isSelected ? 6.5 : 5.0;
+        glowWidth = 14;
+        glowOpacity = 0.45;
+      } else if (r.classification === "FASTEST") {
+        color = "#818cf8"; // Secondary Indigo
+        lineWidth = isSelected ? 6.0 : 4.5;
+        glowWidth = 12;
+        glowOpacity = 0.35;
+      } else if (r.classification === "LOW_RISK_ALTERNATIVE") {
+        color = "#10b981"; // Emerald
+        lineWidth = isSelected ? 6.0 : 4.5;
+        glowWidth = 12;
+        glowOpacity = 0.35;
+      }
+
+      return {
+        type: "Feature",
+        properties: {
+          id: r.routeId,
+          label: r.label,
+          classification: r.classification,
+          color,
+          lineWidth,
+          glowWidth,
+          glowOpacity,
+          isSelected,
+        },
+        geometry: {
+          type: "LineString",
+          coordinates: r.geometry,
+        },
+      };
+    });
+
+    multiSource.setData({
+      type: "FeatureCollection",
+      features: features as any,
+    });
+
+    // Active route top highlight
+    if (activeRoute) {
+      activeSource.setData({
         type: "FeatureCollection",
         features: [
           {
@@ -303,10 +389,70 @@ export const MapViewer: React.FC<MapViewerProps> = ({
           },
         ] as any,
       });
+
+      // Fit map bounds to encompass active route coordinates
+      if (activeRoute.geometry && activeRoute.geometry.length > 1) {
+        const bounds = new maplibregl.LngLatBounds();
+        activeRoute.geometry.forEach((coord) => bounds.extend(coord as [number, number]));
+        map.current.fitBounds(bounds, { padding: 90, maxZoom: 14.5, duration: 800 });
+      }
     } else {
-      source.setData({ type: "FeatureCollection", features: [] });
+      activeSource.setData({ type: "FeatureCollection", features: [] });
     }
-  }, [activeRoute, activeLayers.routes]);
+  }, [allRoutes, activeRoute, activeLayers.routes]);
+
+  // Origin (FROM) and Destination (TO) Map Markers
+  useEffect(() => {
+    if (!map.current) return;
+
+    // Origin Marker (Green Pin)
+    const originKey = "marker_origin_pin";
+    if (originPlace && activeLayers.routes) {
+      let m = markersRef.current[originKey];
+      if (!m) {
+        const el = document.createElement("div");
+        el.className = "cursor-pointer animate-bounce";
+        el.innerHTML = `
+          <div style="background: #10b981; color: #000; padding: 4px 8px; border-radius: 9999px; font-weight: bold; font-size: 11px; box-shadow: 0 0 14px rgba(16, 185, 129, 0.7); display: flex; items-center: center; gap: 3px; border: 1.5px solid #fff;">
+            <span>A</span> <span>${originPlace.name.split(" ")[0]}</span>
+          </div>
+        `;
+        m = new maplibregl.Marker({ element: el })
+          .setLngLat([originPlace.lon, originPlace.lat])
+          .addTo(map.current);
+        markersRef.current[originKey] = m;
+      } else {
+        m.setLngLat([originPlace.lon, originPlace.lat]);
+      }
+    } else if (markersRef.current[originKey]) {
+      markersRef.current[originKey].remove();
+      delete markersRef.current[originKey];
+    }
+
+    // Destination Marker (Red Pin)
+    const destKey = "marker_dest_pin";
+    if (destPlace && activeLayers.routes) {
+      let m = markersRef.current[destKey];
+      if (!m) {
+        const el = document.createElement("div");
+        el.className = "cursor-pointer animate-bounce";
+        el.innerHTML = `
+          <div style="background: #ef4444; color: #fff; padding: 4px 8px; border-radius: 9999px; font-weight: bold; font-size: 11px; box-shadow: 0 0 14px rgba(239, 68, 68, 0.7); display: flex; items-center: center; gap: 3px; border: 1.5px solid #fff;">
+            <span>B</span> <span>${destPlace.name.split(" ")[0]}</span>
+          </div>
+        `;
+        m = new maplibregl.Marker({ element: el })
+          .setLngLat([destPlace.lon, destPlace.lat])
+          .addTo(map.current);
+        markersRef.current[destKey] = m;
+      } else {
+        m.setLngLat([destPlace.lon, destPlace.lat]);
+      }
+    } else if (markersRef.current[destKey]) {
+      markersRef.current[destKey].remove();
+      delete markersRef.current[destKey];
+    }
+  }, [originPlace, destPlace, activeLayers.routes]);
 
   // Update markers (Junctions, Incidents, Officers, CCTV Cameras)
   useEffect(() => {
@@ -367,61 +513,73 @@ export const MapViewer: React.FC<MapViewerProps> = ({
       }
 
       el.innerHTML = `
-        <div class="map-marker ${sevClass} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-[#121317]" : ""}" title="${junction.name}">
-          <span class="material-symbols-outlined text-[16px] ${iconColor}">${iconName}</span>
+        <div class="map-marker ${sevClass} ${isSelected ? "ring-2 ring-primary scale-125" : ""}">
+          <span class="material-symbols-outlined text-[15px] ${iconColor}">${iconName}</span>
         </div>
       `;
     });
 
     // 2. Incident Markers
-    if (activeLayers.incidents && data.incidents) {
-      data.incidents.forEach((inc) => {
-        const markerKey = `inc_${inc.id}`;
-        let marker = markersRef.current[markerKey];
+    data.incidents.forEach((inc) => {
+      const markerKey = `inc_${inc.id}`;
+      let marker = markersRef.current[markerKey];
 
-        let el = marker?.getElement();
-        if (!el) {
-          el = document.createElement("div");
-          el.className = "cursor-pointer";
-          marker = new maplibregl.Marker({ element: el })
-            .setLngLat([inc.lon, inc.lat])
-            .addTo(map.current!);
-          markersRef.current[markerKey] = marker;
+      if (!activeLayers.incidents) {
+        if (marker) {
+          marker.remove();
+          delete markersRef.current[markerKey];
         }
+        return;
+      }
 
-        el.innerHTML = `
-          <div class="map-marker critical" title="${inc.title}">
-            <span class="material-symbols-outlined text-[16px] text-status-critical">warning</span>
-          </div>
-        `;
-      });
-    }
+      let el = marker?.getElement();
+      if (!el) {
+        el = document.createElement("div");
+        el.className = "cursor-pointer transition-transform duration-150 hover:scale-110";
+        marker = new maplibregl.Marker({ element: el })
+          .setLngLat([inc.lon, inc.lat])
+          .addTo(map.current!);
+        markersRef.current[markerKey] = marker;
+      }
 
-    // 3. Officer Markers
-    if (activeLayers.police && data.officers) {
-      data.officers.forEach((off) => {
-        const markerKey = `off_${off.id}`;
-        let marker = markersRef.current[markerKey];
+      el.innerHTML = `
+        <div class="map-marker critical" style="background: rgba(255, 77, 0, 0.25); border-color: #ff4d00;" title="${inc.title}">
+          <span class="material-symbols-outlined text-[15px] text-status-critical">car_crash</span>
+        </div>
+      `;
+    });
 
-        let el = marker?.getElement();
-        if (!el) {
-          el = document.createElement("div");
-          el.className = "cursor-pointer";
-          marker = new maplibregl.Marker({ element: el })
-            .setLngLat([off.lon, off.lat])
-            .addTo(map.current!);
-          markersRef.current[markerKey] = marker;
+    // 3. Police Officers
+    data.officers.forEach((officer) => {
+      const markerKey = `off_${officer.id}`;
+      let marker = markersRef.current[markerKey];
+
+      if (!activeLayers.police) {
+        if (marker) {
+          marker.remove();
+          delete markersRef.current[markerKey];
         }
+        return;
+      }
 
-        el.innerHTML = `
-          <div class="map-marker police" title="${off.name} (${off.rank})">
-            <span class="material-symbols-outlined text-[16px] text-primary">local_police</span>
-          </div>
-        `;
-      });
-    }
+      let el = marker?.getElement();
+      if (!el) {
+        el = document.createElement("div");
+        el.className = "cursor-pointer transition-transform duration-150 hover:scale-110";
+        marker = new maplibregl.Marker({ element: el })
+          .setLngLat([officer.lon, officer.lat])
+          .addTo(map.current!);
+        markersRef.current[markerKey] = marker;
+      }
 
-    // 4. CCTV Camera Markers
+      el.innerHTML = `
+        <div class="map-marker police" title="${officer.name} (${officer.rank})">
+          <span class="material-symbols-outlined text-[14px] text-primary">local_police</span>
+        </div>
+      `;
+    });
+
+    // 4. CCTV Cameras
     if (data.cameras) {
       data.cameras.forEach((cam) => {
         const markerKey = `cam_${cam.cameraId}`;

@@ -4,7 +4,8 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Dict, List, Optional, Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, Query, Response
+from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -21,6 +22,8 @@ from app.state.system_state import system_state
 from app.audit.trail import audit_trail
 from app.providers.tomtom import tomtom_provider
 from app.providers.osrm import osrm_provider
+from app.providers.geocoding import geocoding_provider
+from app.vision.pipeline import vision_pipeline
 from app.engine.spatial_matcher import spatial_matcher
 from app.engine.route_ranker import route_ranker
 from app.simulation.simulator import simulation_engine
@@ -117,6 +120,60 @@ async def get_roads():
         "segments": [s.model_dump() for s in system_state.road_segments.values()],
         "liveStates": {k: v.model_dump() for k, v in system_state.live_states.items()},
     }
+
+# --- 2.5. Geocoding & Location Search ---
+
+@app.get("/api/geocoding/search")
+async def search_locations(q: str = Query(default="", description="Search place or junction name in Nagpur")):
+    return await geocoding_provider.search(q, limit=8)
+
+# --- 2.6. CCTV Edge Vision & Camera Streams ---
+
+@app.get("/api/cctv/cameras")
+async def get_cctv_cameras():
+    cameras_list = []
+    for cam_id, cam in system_state.cameras.items():
+        obs = vision_pipeline.get_latest_observation(cam_id)
+        source_cfg = vision_pipeline._source_configs.get(cam_id, {})
+        cap = vision_pipeline._video_captures.get(cam_id)
+        is_live = cap is not None and cap.isOpened()
+        cameras_list.append({
+            "cameraId": cam.cameraId,
+            "junctionId": cam.junctionId,
+            "name": cam.name,
+            "lat": cam.lat,
+            "lon": cam.lon,
+            "direction": cam.direction,
+            "sourceType": source_cfg.get("sourceType", cam.sourceType or "simulated"),
+            "isLive": is_live,
+            "fps": 29.2 if is_live else 28.5,
+            "confidence": obs.confidence if obs else 0.92,
+            "flowRateVpm": obs.vehiclesPerMinute if obs else 35.0,
+            "occupancyPct": round((obs.occupancyEstimate if obs else 0.45) * 100.0, 1),
+            "queueMeters": obs.queueLengthEstimateMeters if obs else 25.0,
+            "composition": {
+                "twoWheelers": obs.classDistribution.get("motorcycles", 45) if obs else 45,
+                "cars": obs.classDistribution.get("cars", 25) if obs else 25,
+                "autoRickshaws": obs.classDistribution.get("auto_rickshaws", 18) if obs else 18,
+                "buses": obs.classDistribution.get("buses", 8) if obs else 8,
+                "trucks": obs.classDistribution.get("trucks", 4) if obs else 4,
+            },
+        })
+    return cameras_list
+
+@app.get("/api/cctv/frame/{camera_id}")
+async def get_cctv_frame(camera_id: str):
+    frame_bytes = vision_pipeline.generate_jpeg_frame(camera_id)
+    return Response(content=frame_bytes, media_type="image/jpeg")
+
+class ConfigureCameraSourceRequest(BaseModel):
+    cameraId: str
+    sourceType: str = "webcam"  # webcam | rtsp | file | simulated
+    sourceUrl: Optional[str] = "0"
+
+@app.post("/api/cctv/configure")
+async def configure_camera_source(req: ConfigureCameraSourceRequest):
+    return vision_pipeline.configure_camera_source(req.cameraId, req.sourceType, req.sourceUrl)
 
 # --- 3. Route Intelligence & Multi-Objective Ranking ---
 

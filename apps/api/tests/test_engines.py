@@ -199,3 +199,27 @@ def test_audit_trail():
     events = audit_trail.get_events()
     assert len(events) == 1
     assert events[0].summary == "Operator overrode signal timing at Variety Sq"
+
+import pytest
+
+@pytest.mark.anyio
+async def test_geocoding_search():
+    from app.providers.geocoding import geocoding_provider
+    results = await geocoding_provider.search("sitabuldi", limit=5)
+    assert len(results) >= 1
+    assert any("Sitabuldi" in r["name"] for r in results)
+
+    results_empty = await geocoding_provider.search("", limit=5)
+    assert len(results_empty) >= 1
+
+def test_vision_pipeline_and_frame_generation():
+    from app.vision.pipeline import vision_pipeline
+    obs = vision_pipeline.process_camera_feed("cam_sitabuldi_01")
+    assert obs.cameraId == "cam_sitabuldi_01"
+    assert obs.vehiclesPerMinute > 0.0
+    assert obs.confidence >= 0.85
+    assert sum(obs.classDistribution.values()) > 0
+
+    frame_bytes = vision_pipeline.generate_jpeg_frame("cam_sitabuldi_01")
+    assert len(frame_bytes) > 500  # valid JPEG image binary
+
