@@ -13,6 +13,7 @@ import { RoutesPanel } from "@/components/RoutesPanel";
 import { SystemStatusDrawer } from "@/components/SystemStatusDrawer";
 import { IncidentCenterDrawer } from "@/components/IncidentCenterDrawer";
 import { NetworkSummary, RouteCandidate, Incident } from "@/types";
+import { API_BASE_URL, WS_BASE_URL } from "@/utils/api";
 
 export default function DashboardPage() {
   const [data, setData] = useState<NetworkSummary | null>(null);
@@ -44,7 +45,7 @@ export default function DashboardPage() {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const res = await fetch("http://localhost:8000/api/network/summary");
+        const res = await fetch(`${API_BASE_URL}/api/network/summary`);
         if (res.ok) {
           const json = await res.json();
           setData(json);
@@ -59,7 +60,7 @@ export default function DashboardPage() {
     // Setup live WebSocket
     let ws: WebSocket;
     const connectWs = () => {
-      ws = new WebSocket("ws://localhost:8000/ws/live");
+      ws = new WebSocket(WS_BASE_URL);
       ws.onopen = () => {
         console.log("WebSocket connected to NAVI-FLOW backend.");
       };
@@ -93,13 +94,13 @@ export default function DashboardPage() {
   // Human-in-the-loop Dispatch Actions
   const handleAcceptRecommendation = async (recId: string) => {
     try {
-      const res = await fetch("http://localhost:8000/api/police/deployments/accept", {
+      const res = await fetch(`${API_BASE_URL}/api/police/deployments/accept`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recommendationId: recId }),
       });
       if (res.ok) {
-        const summaryRes = await fetch("http://localhost:8000/api/network/summary");
+        const summaryRes = await fetch(`${API_BASE_URL}/api/network/summary`);
         if (summaryRes.ok) setData(await summaryRes.json());
       }
     } catch (e) {
@@ -109,7 +110,7 @@ export default function DashboardPage() {
 
   const handleOverrideRecommendation = async (recId: string, altOfficerId: string, reason: string) => {
     try {
-      const res = await fetch("http://localhost:8000/api/police/deployments/override", {
+      const res = await fetch(`${API_BASE_URL}/api/police/deployments/override`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -119,7 +120,7 @@ export default function DashboardPage() {
         }),
       });
       if (res.ok) {
-        const summaryRes = await fetch("http://localhost:8000/api/network/summary");
+        const summaryRes = await fetch(`${API_BASE_URL}/api/network/summary`);
         if (summaryRes.ok) setData(await summaryRes.json());
       }
     } catch (e) {
@@ -129,13 +130,13 @@ export default function DashboardPage() {
 
   const handleRejectRecommendation = async (recId: string) => {
     try {
-      const res = await fetch("http://localhost:8000/api/police/deployments/reject", {
+      const res = await fetch(`${API_BASE_URL}/api/police/deployments/reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recommendationId: recId }),
       });
       if (res.ok) {
-        const summaryRes = await fetch("http://localhost:8000/api/network/summary");
+        const summaryRes = await fetch(`${API_BASE_URL}/api/network/summary`);
         if (summaryRes.ok) setData(await summaryRes.json());
       }
     } catch (e) {
@@ -147,7 +148,7 @@ export default function DashboardPage() {
   const handleTriggerDemo = async () => {
     try {
       setSelectedJunctionId("j_sitabuldi");
-      const res = await fetch("http://localhost:8000/api/demo/sitabuldi-accident", {
+      const res = await fetch(`${API_BASE_URL}/api/demo/sitabuldi-accident`, {
         method: "POST",
       });
       if (res.ok) {
@@ -161,7 +162,7 @@ export default function DashboardPage() {
 
   const handleResetDemo = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/demo/reset", {
+      const res = await fetch(`${API_BASE_URL}/api/demo/reset`, {
         method: "POST",
       });
       if (res.ok) {

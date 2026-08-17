@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { X, FileText } from "lucide-react";
 import { AuditEvent } from "@/types";
+import { API_BASE_URL } from "@/utils/api";
 
 interface AuditModalProps {
   isOpen: boolean;
@@ -29,7 +30,7 @@ export const AuditModal: React.FC<AuditModalProps> = ({ isOpen, onClose }) => {
     const fetchAudit = async () => {
       setLoading(true);
       try {
-        const res = await fetch("http://localhost:8000/api/audit/events?limit=50");
+        const res = await fetch(`${API_BASE_URL}/api/audit/events?limit=50`);
         if (res.ok) {
           const data = await res.json();
           setEvents(data);

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { Sparkles, X, Send, Bot, User, CheckCircle2 } from "lucide-react";
+import { API_BASE_URL } from "@/utils/api";
 
 interface CopilotModalProps {
   isOpen: boolean;
@@ -43,7 +44,7 @@ export const CopilotModal: React.FC<CopilotModalProps> = ({ isOpen, onClose }) =
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/api/copilot/query", {
+      const res = await fetch(`${API_BASE_URL}/api/copilot/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: text }),

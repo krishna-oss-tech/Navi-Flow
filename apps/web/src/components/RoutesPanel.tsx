@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Navigation, Sliders, Eye, Car, Bike, Bus, Truck, Activity, ShieldCheck } from "lucide-react";
 import { RouteCandidate } from "@/types";
+import { API_BASE_URL } from "@/utils/api";
 
 interface RoutesPanelProps {
   onSelectRoute: (route: RouteCandidate | null) => void;
@@ -45,7 +46,7 @@ export const RoutesPanel: React.FC<RoutesPanelProps> = ({ onSelectRoute, activeR
   const handleQueryRoutes = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/api/routes/query", {
+      const res = await fetch(`${API_BASE_URL}/api/routes/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

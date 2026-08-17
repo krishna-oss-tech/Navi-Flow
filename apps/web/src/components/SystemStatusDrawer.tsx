@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { X, Server, Radio, Database, Cpu, Activity, ShieldCheck, CheckCircle2, AlertCircle } from "lucide-react";
 import { NetworkSummary } from "@/types";
+import { API_BASE_URL, WS_BASE_URL } from "@/utils/api";
 
 interface SystemStatusDrawerProps {
   isOpen: boolean;
@@ -24,8 +25,8 @@ export const SystemStatusDrawer: React.FC<SystemStatusDrawerProps> = ({
     const fetchStatus = async () => {
       try {
         const [healthRes, provRes] = await Promise.all([
-          fetch("http://localhost:8000/api/health"),
-          fetch("http://localhost:8000/api/providers/status"),
+          fetch(`${API_BASE_URL}/api/health`),
+          fetch(`${API_BASE_URL}/api/providers/status`),
         ]);
         if (healthRes.ok) setHealth(await healthRes.json());
         if (provRes.ok) setProviders(await provRes.json());
@@ -184,7 +185,7 @@ export const SystemStatusDrawer: React.FC<SystemStatusDrawerProps> = ({
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-500 mt-0.5">
-                  ws://localhost:8000/ws/live • Heartbeat synced
+                  {WS_BASE_URL} • Heartbeat synced
                 </p>
               </div>
             </div>

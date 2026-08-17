@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Activity, X, Play, TrendingUp, CheckCircle2 } from "lucide-react";
 import { NetworkSummary } from "@/types";
+import { API_BASE_URL } from "@/utils/api";
 
 interface SimulationModalProps {
   isOpen: boolean;
@@ -30,7 +31,7 @@ export const SimulationModal: React.FC<SimulationModalProps> = ({
   const handleRun = async () => {
     setLoading(true);
     try {
-      const res = await fetch("http://localhost:8000/api/simulation/run", {
+      const res = await fetch(`${API_BASE_URL}/api/simulation/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
