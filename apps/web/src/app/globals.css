@@ -1,11 +1,9 @@
+@import "maplibre-gl/dist/maplibre-gl.css";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import "maplibre-gl/dist/maplibre-gl.css";
-
-/* ─── Google Fonts ─── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
 /* ─── CSS Custom Properties ─── */
 :root {
@@ -34,7 +32,7 @@
 }
 
 /* ─── Base Resets ─── */
-body {
+html, body {
   color: var(--text-primary);
   background: var(--bg-primary);
   font-family: var(--font-inter, 'Inter', system-ui, sans-serif);
@@ -42,6 +40,10 @@ body {
   user-select: none;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  width: 100%;
 }
 
 /* ─── Glass Panel System ─── */
