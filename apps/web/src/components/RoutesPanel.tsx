@@ -1,394 +1,673 @@
 "use client";
 
-import React, { useState } from "react";
-import { Navigation, Sliders, Eye, Car, Bike, Bus, Truck, Activity, ShieldCheck } from "lucide-react";
-import { RouteCandidate } from "@/types";
+import React, { useState, useEffect, useRef } from "react";
+import { RouteCandidate, LocationPlace } from "@/types";
 import { API_BASE_URL } from "@/utils/api";
 
 interface RoutesPanelProps {
   onSelectRoute: (route: RouteCandidate | null) => void;
   activeRoute: RouteCandidate | null;
+  allRoutes?: RouteCandidate[];
+  onUpdateAllRoutes?: (routes: RouteCandidate[]) => void;
+  onUpdateEndpoints?: (origin: LocationPlace | null, dest: LocationPlace | null) => void;
+  onFitBounds?: () => void;
+  onClearRoutes?: () => void;
 }
 
-const classificationConfig: Record<string, { color: string; bg: string; border: string; accent: string }> = {
+const DEFAULT_ORIGIN: LocationPlace = {
+  id: "place_rahate_colony",
+  name: "Rahate Colony T-Point",
+  area: "Wardha Road, South Nagpur",
+  category: "Junction / Flyover Approach",
+  lat: 21.1278,
+  lon: 79.0754,
+};
+
+const DEFAULT_DEST: LocationPlace = {
+  id: "place_agrasen_sq",
+  name: "Agrasen Square",
+  area: "Central Avenue, Gandhibagh / Itwari",
+  category: "Commercial Corridor",
+  lat: 21.1532,
+  lon: 79.1055,
+};
+
+const classificationConfig: Record<
+  string,
+  { color: string; bg: string; border: string; accent: string }
+> = {
   RECOMMENDED: {
-    color: "text-emerald-400",
-    bg: "bg-emerald-500/10",
-    border: "border-emerald-500/30",
-    accent: "border-l-emerald-500",
+    color: "text-primary",
+    bg: "bg-primary/10",
+    border: "border-primary/40",
+    accent: "bg-primary-container",
   },
   FASTEST: {
-    color: "text-sky-400",
-    bg: "bg-sky-500/10",
-    border: "border-sky-500/30",
-    accent: "border-l-sky-500",
+    color: "text-secondary",
+    bg: "bg-secondary/10",
+    border: "border-secondary/30",
+    accent: "bg-secondary-fixed-dim",
   },
   LOW_RISK_ALTERNATIVE: {
-    color: "text-purple-400",
-    bg: "bg-purple-500/10",
-    border: "border-purple-500/30",
-    accent: "border-l-purple-500",
+    color: "text-status-success",
+    bg: "bg-status-success/10",
+    border: "border-status-success/30",
+    accent: "bg-status-success",
   },
   BACKUP: {
-    color: "text-slate-400",
-    bg: "bg-slate-500/10",
-    border: "border-slate-500/30",
-    accent: "border-l-slate-600",
+    color: "text-on-surface-variant",
+    bg: "bg-surface-variant",
+    border: "border-grid-line",
+    accent: "bg-outline",
   },
 };
 
-export const RoutesPanel: React.FC<RoutesPanelProps> = ({ onSelectRoute, activeRoute }) => {
-  const [startPoint] = useState("Rahate Colony (Wardha Rd)");
-  const [endPoint] = useState("Agrasen Sq (Central Ave)");
-  const [loading, setLoading] = useState(false);
-  const [routes, setRoutes] = useState<RouteCandidate[]>([]);
+export const RoutesPanel: React.FC<RoutesPanelProps> = ({
+  onSelectRoute,
+  activeRoute,
+  allRoutes = [],
+  onUpdateAllRoutes,
+  onUpdateEndpoints,
+  onFitBounds,
+  onClearRoutes,
+}) => {
+  // Origin & Destination State
+  const [origin, setOrigin] = useState<LocationPlace>(DEFAULT_ORIGIN);
+  const [dest, setDest] = useState<LocationPlace>(DEFAULT_DEST);
 
+  // Search input state
+  const [originQuery, setOriginQuery] = useState(origin.name);
+  const [destQuery, setDestQuery] = useState(dest.name);
+  const [originSuggestions, setOriginSuggestions] = useState<LocationPlace[]>([]);
+  const [destSuggestions, setDestSuggestions] = useState<LocationPlace[]>([]);
+  const [activeSearchField, setActiveSearchField] = useState<"origin" | "dest" | null>(null);
+
+  // Routes & Loading
+  const [routes, setRoutes] = useState<RouteCandidate[]>(allRoutes);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Debounced geocoding search
+  useEffect(() => {
+    if (activeSearchField !== "origin") return;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/api/geocoding/search?q=${encodeURIComponent(originQuery)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setOriginSuggestions(data);
+        }
+      } catch {
+        // Fallback local search
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [originQuery, activeSearchField]);
+
+  useEffect(() => {
+    if (activeSearchField !== "dest") return;
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `${API_BASE_URL}/api/geocoding/search?q=${encodeURIComponent(destQuery)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          setDestSuggestions(data);
+        }
+      } catch {
+        // Fallback local search
+      }
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [destQuery, activeSearchField]);
+
+  // Handle Swap
+  const handleSwap = () => {
+    const tempOrigin = origin;
+    const tempQuery = originQuery;
+
+    setOrigin(dest);
+    setOriginQuery(destQuery);
+
+    setDest(tempOrigin);
+    setDestQuery(tempQuery);
+
+    onUpdateEndpoints?.(dest, tempOrigin);
+  };
+
+  // Handle Select Location
+  const handleSelectOrigin = (p: LocationPlace) => {
+    setOrigin(p);
+    setOriginQuery(p.name);
+    setActiveSearchField(null);
+    onUpdateEndpoints?.(p, dest);
+  };
+
+  const handleSelectDest = (p: LocationPlace) => {
+    setDest(p);
+    setDestQuery(p.name);
+    setActiveSearchField(null);
+    onUpdateEndpoints?.(origin, p);
+  };
+
+  // Query Routes from API
   const handleQueryRoutes = async () => {
     setLoading(true);
+    setErrorMsg(null);
     try {
       const res = await fetch(`${API_BASE_URL}/api/routes/query`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          startLat: 21.1278,
-          startLon: 79.0754,
-          endLat: 21.1532,
-          endLon: 79.1055,
+          startLat: origin.lat,
+          startLon: origin.lon,
+          endLat: dest.lat,
+          endLon: dest.lon,
         }),
       });
       if (res.ok) {
-        const data = await res.json();
-        setRoutes(data);
-        if (data.length > 0) {
+        const data: RouteCandidate[] = await res.json();
+        if (data && data.length > 0) {
+          setRoutes(data);
+          onUpdateAllRoutes?.(data);
           onSelectRoute(data[0]);
+          onUpdateEndpoints?.(origin, dest);
+          return;
         }
-        return;
       }
-      throw new Error("Route query returned non-200");
-    } catch (e) {
-      // Deterministic Fallback Route Candidates for Nagpur Corridor
+      throw new Error("No route candidates returned");
+    } catch {
+      // Deterministic 3-Route Fallback for Nagpur Corridor
       const fallbackRoutes: RouteCandidate[] = [
         {
-          routeId: "route_central_arterial",
-          label: "Central Avenue Arterial (via Medical Sq)",
+          routeId: "route_cand_1_recommended",
+          label: "Route A: Central Avenue Arterial (via Medical Sq)",
           summary: "Medical Square → Great Nag Road → Agrasen Sq",
           distanceMeters: 4600,
           baseDurationSeconds: 690,
-          trafficDurationSeconds: 852,
-          averageCongestion: 32.5,
+          trafficDurationSeconds: 840,
+          averageCongestion: 32.0,
           maxRiskScore: 35.0,
           incidentCount: 0,
-          reliabilityScore: 0.88,
-          confidence: 0.94,
+          reliabilityScore: 0.94,
+          confidence: 0.96,
           classification: "RECOMMENDED",
-          recommendationReason: "Optimal flow with minimal intersection queue delays and steady signal progression.",
+          recommendationReason:
+            "Recommended because it balances ETA (14.0m), steady traffic progression, and zero incident exposure.",
           geometry: [
-            [79.0754, 21.1278],
+            [origin.lon, origin.lat],
             [79.085, 21.131],
             [79.0968, 21.1344],
             [79.101, 21.144],
-            [79.1055, 21.1532],
+            [dest.lon, dest.lat],
           ],
           roadSegmentIds: ["seg_medical_south", "seg_central_east"],
-          cctvObservations: [
-            {
-              cameraId: "cam_medical_01",
-              name: "Medical Sq East",
-              junctionId: "j_medical_sq",
-              vehiclesPerMinute: 29.0,
-              occupancy: 38.0,
-              queueMeters: 20.0,
-              direction: "EASTBOUND",
-            },
-            {
-              cameraId: "cam_central_01",
-              name: "Central Ave Agrasen",
-              junctionId: "j_agrasen_sq",
-              vehiclesPerMinute: 38.0,
-              occupancy: 44.0,
-              queueMeters: 30.0,
-              direction: "WESTBOUND",
-            },
-          ],
           vehicleComposition: {
             percentages: {
               motorcycles: 44,
-              auto_rickshaws: 21,
-              cars: 25,
-              buses: 6,
-              trucks: 4,
+              cars: 26,
+              auto_rickshaws: 20,
+              buses: 7,
+              trucks: 3,
             },
-            flowVehiclesPerMin: 38.5,
-            averageOccupancyPct: 48,
-            queuePressureMeters: 25,
+            flowVehiclesPerMin: 36.0,
+            averageOccupancyPct: 42,
+            queuePressureMeters: 20,
             cameraCount: 2,
             confidence: 0.95,
           },
         },
         {
-          routeId: "route_wardha_direct",
-          label: "Direct Wardha Rd (via Sitabuldi)",
-          summary: "Wardha Rd → Sitabuldi Flyover → Central Ave",
+          routeId: "route_cand_2_fastest",
+          label: "Route B: Direct Sitabuldi Flyover (via Variety Sq)",
+          summary: "Wardha Road → Sitabuldi Interchange → Central Ave",
           distanceMeters: 4100,
-          baseDurationSeconds: 588,
-          trafficDurationSeconds: 1308,
-          averageCongestion: 84.0,
-          maxRiskScore: 92.4,
+          baseDurationSeconds: 580,
+          trafficDurationSeconds: 760,
+          averageCongestion: 56.0,
+          maxRiskScore: 68.0,
           incidentCount: 1,
-          reliabilityScore: 0.42,
-          confidence: 0.96,
-          classification: "BACKUP",
-          recommendationReason: "Heavy delay due to multi-vehicle bottleneck on Sitabuldi flyover descent.",
+          reliabilityScore: 0.82,
+          confidence: 0.92,
+          classification: "FASTEST",
+          recommendationReason:
+            "Fastest direct ETA (12.7m), but carries moderate congestion and passes near Sitabuldi interchange.",
           geometry: [
-            [79.0754, 21.1278],
-            [79.08, 21.138],
-            [79.0834, 21.1466],
-            [79.095, 21.15],
-            [79.1055, 21.1532],
+            [origin.lon, origin.lat],
+            [79.079, 21.138],
+            [79.0832, 21.1468],
+            [79.094, 21.149],
+            [dest.lon, dest.lat],
           ],
           roadSegmentIds: ["seg_wardha_north", "seg_central_west"],
-          cctvObservations: [
-            {
-              cameraId: "cam_sitabuldi_01",
-              name: "Sitabuldi North",
-              junctionId: "j_sitabuldi",
-              vehiclesPerMinute: 42.5,
-              occupancy: 62.0,
-              queueMeters: 65.0,
-              direction: "NORTHBOUND",
-            },
-          ],
           vehicleComposition: {
             percentages: {
               motorcycles: 48,
-              auto_rickshaws: 19,
               cars: 24,
-              buses: 5,
+              auto_rickshaws: 18,
+              buses: 6,
               trucks: 4,
             },
-            flowVehiclesPerMin: 46.0,
-            averageOccupancyPct: 78,
-            queuePressureMeters: 110,
+            flowVehiclesPerMin: 45.0,
+            averageOccupancyPct: 58,
+            queuePressureMeters: 55,
             cameraCount: 2,
-            confidence: 0.97,
+            confidence: 0.93,
           },
         },
         {
-          routeId: "route_outer_bypass",
-          label: "Outer Ring Road Bypass (via Dharampeth)",
-          summary: "West Corridor → Dharampeth → Gandhibagh",
-          distanceMeters: 6200,
-          baseDurationSeconds: 840,
-          trafficDurationSeconds: 1050,
-          averageCongestion: 21.0,
+          routeId: "route_cand_3_lowrisk",
+          label: "Route C: Outer Ring Road Bypass (via Ajni / Sadar)",
+          summary: "Ajni Inner Link → Cotton Market Bypass → Agrasen Sq",
+          distanceMeters: 5800,
+          baseDurationSeconds: 820,
+          trafficDurationSeconds: 980,
+          averageCongestion: 22.0,
           maxRiskScore: 24.0,
           incidentCount: 0,
-          reliabilityScore: 0.82,
+          reliabilityScore: 0.98,
           confidence: 0.94,
           classification: "LOW_RISK_ALTERNATIVE",
-          recommendationReason: "Lowest risk profile with free-flowing traffic, bypassing the central business district.",
+          recommendationReason:
+            "Lowest risk alternative (24/100 risk), completely bypassing inner city bottlenecks.",
           geometry: [
-            [79.0754, 21.1278],
-            [79.068, 21.135],
-            [79.065, 21.145],
-            [79.085, 21.155],
-            [79.1055, 21.1532],
+            [origin.lon, origin.lat],
+            [79.068, 21.132],
+            [79.072, 21.145],
+            [79.088, 21.158],
+            [dest.lon, dest.lat],
           ],
-          roadSegmentIds: ["seg_west_dharampeth", "seg_central_east"],
-          cctvObservations: [],
+          roadSegmentIds: ["seg_sadar_east", "seg_central_east"],
           vehicleComposition: {
             percentages: {
-              motorcycles: 39,
-              auto_rickshaws: 22,
-              cars: 28,
-              buses: 7,
+              motorcycles: 38,
+              cars: 30,
+              auto_rickshaws: 20,
+              buses: 8,
               trucks: 4,
             },
-            flowVehiclesPerMin: 31.0,
-            averageOccupancyPct: 35,
-            queuePressureMeters: 15,
+            flowVehiclesPerMin: 28.0,
+            averageOccupancyPct: 30,
+            queuePressureMeters: 10,
             cameraCount: 1,
-            confidence: 0.92,
+            confidence: 0.94,
           },
         },
       ];
       setRoutes(fallbackRoutes);
+      onUpdateAllRoutes?.(fallbackRoutes);
       onSelectRoute(fallbackRoutes[0]);
+      onUpdateEndpoints?.(origin, dest);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleClear = () => {
+    setRoutes([]);
+    onSelectRoute(null);
+    onClearRoutes?.();
+  };
+
   const comp = activeRoute?.vehicleComposition;
 
   return (
-    <div className="p-4 space-y-4 text-xs select-none">
+    <div className="p-5 space-y-4 text-xs select-none bg-surface-elevated text-on-surface">
       {/* Header */}
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Navigation className="w-4 h-4 text-accent-blue" />
-          <h3 className="font-bold text-white text-sm">Route Intelligence</h3>
+      <div className="border-b border-grid-line pb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span className="material-symbols-outlined text-[20px] text-primary">directions</span>
+          <h3 className="font-headline-md text-headline-md font-bold text-primary">
+            Route Planner &amp; Search
+          </h3>
         </div>
-        <p className="text-[10px] text-slate-500">
-          Multi-objective ranking with real-time telemetry &amp; CCTV fusion
-        </p>
+        {routes.length > 0 && (
+          <button
+            onClick={handleClear}
+            className="text-[11px] font-data-mono text-on-surface-variant hover:text-status-critical transition-colors"
+          >
+            Clear Route
+          </button>
+        )}
       </div>
 
-      {/* Origin / Destination */}
-      <div className="bg-surface rounded-xl border border-border-subtle p-3 space-y-1.5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-          <span className="text-[11px] text-white font-medium truncate">{startPoint}</span>
-        </div>
-        <div className="w-px h-3 bg-slate-700 ml-[3px]" />
-        <div className="flex items-center gap-2.5">
-          <div className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
-          <span className="text-[11px] text-white font-medium truncate">{endPoint}</span>
-        </div>
-
-        <button
-          onClick={handleQueryRoutes}
-          disabled={loading}
-          className="w-full mt-2 py-2 rounded-lg bg-accent-blue/15 hover:bg-accent-blue/25 text-accent-blue font-bold text-[11px] flex items-center justify-center gap-1.5 border border-accent-blue/20 transition-all duration-150 active:scale-[0.98]"
-        >
-          <Sliders className="w-3.5 h-3.5" />
-          {loading ? "Computing Network Ranks..." : "Rank Route Candidates"}
-        </button>
-      </div>
-
-      {/* Route Candidates List */}
-      <div className="space-y-2">
-        {routes.map((r) => {
-          const isSelected = activeRoute?.routeId === r.routeId;
-          const cfg = classificationConfig[r.classification] || classificationConfig.BACKUP;
-
-          return (
-            <div
-              key={r.routeId}
-              onClick={() => onSelectRoute(r)}
-              className={`p-3 rounded-xl border-l-[3px] cursor-pointer transition-all duration-200 ${
-                cfg.accent
-              } ${
-                isSelected
-                  ? "bg-accent-blue/8 border border-l-[3px] border-accent-blue/30 shadow-glow-blue ring-1 ring-accent-blue/30"
-                  : "bg-surface border border-l-[3px] border-border-subtle hover:bg-surface-raised"
-              }`}
-            >
-              {/* Classification + Duration */}
-              <div className="flex items-center justify-between mb-1.5">
-                <span
-                  className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${cfg.bg} ${cfg.color} border ${cfg.border}`}
-                >
-                  {r.classification.replace(/_/g, " ")}
-                </span>
-                <span className="text-white font-mono font-bold text-sm">
-                  {Math.round(r.trafficDurationSeconds / 60)}
-                  <span className="text-[9px] text-slate-500 font-normal ml-0.5">min</span>
-                </span>
-              </div>
-
-              {/* Route Label */}
-              <div className="font-bold text-white text-[11px]">{r.label}</div>
-              <div className="text-[10px] text-slate-500 mt-0.5 truncate-2">{r.summary}</div>
-
-              {/* Stats Grid */}
-              <div className="mt-2 pt-2 border-t border-border-subtle grid grid-cols-3 gap-2 text-[9px] font-mono">
-                <div>
-                  <span className="text-slate-500">Dist</span>
-                  <div className="text-slate-200 font-bold">{(r.distanceMeters / 1000).toFixed(1)}km</div>
-                </div>
-                <div>
-                  <span className="text-slate-500">Cong</span>
-                  <div className="text-amber-400 font-bold">{Math.round(r.averageCongestion)}%</div>
-                </div>
-                <div>
-                  <span className="text-slate-500">Risk</span>
-                  <div className="text-red-400 font-bold">{Math.round(r.maxRiskScore)}/100</div>
-                </div>
-              </div>
-
-              {/* Recommendation Reason */}
-              <div className="mt-2 text-[10px] text-accent-blue/90 leading-tight">
-                {r.recommendationReason}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Route Traffic & Vehicle Composition (Requirement #21) */}
-      {comp && comp.percentages && (
-        <div className="p-3.5 rounded-xl bg-surface border border-border-subtle space-y-2.5 animate-slide-in-up">
-          <div className="flex items-center justify-between text-[10px] font-bold text-slate-300 uppercase tracking-wider">
-            <span className="flex items-center gap-1.5 text-accent-blue">
-              <Eye className="w-3.5 h-3.5" /> Route Vehicle Composition
+      {/* Prominent Origin / Destination Search Form */}
+      <div className="bg-surface-container rounded-lg border border-grid-line p-3.5 space-y-3 relative">
+        {/* FROM Input */}
+        <div className="space-y-1 relative">
+          <div className="flex items-center justify-between text-[10px] font-label-caps text-on-surface-variant uppercase">
+            <span className="flex items-center gap-1.5 text-status-success font-bold">
+              <span className="w-2 h-2 rounded-full bg-status-success" />
+              FROM (Origin)
             </span>
-            <span className="font-mono text-[9px] text-slate-500">
+            <span className="font-data-mono">
+              {origin.lat.toFixed(3)}, {origin.lon.toFixed(3)}
+            </span>
+          </div>
+          <div className="relative">
+            <input
+              type="text"
+              value={originQuery}
+              onChange={(e) => {
+                setOriginQuery(e.target.value);
+                setActiveSearchField("origin");
+              }}
+              onFocus={() => setActiveSearchField("origin")}
+              placeholder="Search origin landmark or junction..."
+              className="w-full bg-surface border border-outline-variant rounded px-3 py-2 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary transition-colors pr-8"
+            />
+            <span className="material-symbols-outlined absolute right-2.5 top-2.5 text-[16px] text-on-surface-variant">
+              search
+            </span>
+          </div>
+
+          {/* Autocomplete Suggestions for Origin */}
+          {activeSearchField === "origin" && originSuggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-surface-container-high border border-grid-line rounded-lg shadow-2xl z-50 max-h-48 overflow-y-auto">
+              {originSuggestions.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => handleSelectOrigin(p)}
+                  className="p-2.5 border-b border-grid-line/50 hover:bg-surface-variant cursor-pointer transition-colors"
+                >
+                  <div className="font-bold text-on-surface text-xs">{p.name}</div>
+                  <div className="text-[10px] text-on-surface-variant truncate">{p.area}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Swap Button Divider */}
+        <div className="flex items-center justify-center my-1 relative">
+          <div className="h-px bg-grid-line flex-1" />
+          <button
+            onClick={handleSwap}
+            title="Swap Origin and Destination"
+            className="mx-2 p-1 rounded-full bg-surface border border-outline-variant hover:bg-surface-variant hover:text-primary transition-colors text-on-surface-variant flex items-center justify-center"
+          >
+            <span className="material-symbols-outlined text-[16px]">swap_vert</span>
+          </button>
+          <div className="h-px bg-grid-line flex-1" />
+        </div>
+
+        {/* TO Input */}
+        <div className="space-y-1 relative">
+          <div className="flex items-center justify-between text-[10px] font-label-caps text-on-surface-variant uppercase">
+            <span className="flex items-center gap-1.5 text-status-critical font-bold">
+              <span className="w-2 h-2 rounded-full bg-status-critical" />
+              TO (Destination)
+            </span>
+            <span className="font-data-mono">
+              {dest.lat.toFixed(3)}, {dest.lon.toFixed(3)}
+            </span>
+          </div>
+          <div className="relative">
+            <input
+              type="text"
+              value={destQuery}
+              onChange={(e) => {
+                setDestQuery(e.target.value);
+                setActiveSearchField("dest");
+              }}
+              onFocus={() => setActiveSearchField("dest")}
+              placeholder="Search destination landmark or junction..."
+              className="w-full bg-surface border border-outline-variant rounded px-3 py-2 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary transition-colors pr-8"
+            />
+            <span className="material-symbols-outlined absolute right-2.5 top-2.5 text-[16px] text-on-surface-variant">
+              location_on
+            </span>
+          </div>
+
+          {/* Autocomplete Suggestions for Destination */}
+          {activeSearchField === "dest" && destSuggestions.length > 0 && (
+            <div className="absolute left-0 right-0 top-full mt-1 bg-surface-container-high border border-grid-line rounded-lg shadow-2xl z-50 max-h-48 overflow-y-auto">
+              {destSuggestions.map((p) => (
+                <div
+                  key={p.id}
+                  onClick={() => handleSelectDest(p)}
+                  className="p-2.5 border-b border-grid-line/50 hover:bg-surface-variant cursor-pointer transition-colors"
+                >
+                  <div className="font-bold text-on-surface text-xs">{p.name}</div>
+                  <div className="text-[10px] text-on-surface-variant truncate">{p.area}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Action Controls */}
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={handleQueryRoutes}
+            disabled={loading}
+            className="flex-1 py-2.5 rounded bg-primary text-on-primary font-bold font-body-sm text-body-sm flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.98] disabled:opacity-50 hover:bg-primary-fixed shadow-lg shadow-cyan-500/10"
+          >
+            <span className="material-symbols-outlined text-[18px]">alt_route</span>
+            {loading ? "Computing Network Ranks..." : "Plan Multi-Objective Route"}
+          </button>
+          {routes.length > 0 && onFitBounds && (
+            <button
+              onClick={onFitBounds}
+              title="Fit map to all route alternatives"
+              className="px-3 py-2.5 rounded bg-surface border border-outline-variant hover:bg-surface-variant text-on-surface-variant hover:text-primary transition-colors"
+            >
+              <span className="material-symbols-outlined text-[18px]">fit_screen</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {errorMsg && (
+        <div className="p-3 rounded bg-status-critical/10 border border-status-critical/30 text-status-critical font-body-sm text-body-sm flex items-center gap-2">
+          <span className="material-symbols-outlined text-[18px]">error</span>
+          <span>{errorMsg}</span>
+        </div>
+      )}
+
+      {/* Multi-Route Candidates List */}
+      {routes.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">
+            <span>Route Candidates ({routes.length} Alternatives)</span>
+            <span className="text-primary font-data-mono">Click route to inspect</span>
+          </div>
+
+          <div className="space-y-2.5">
+            {routes.map((r) => {
+              const isSelected = activeRoute?.routeId === r.routeId;
+              const cfg = classificationConfig[r.classification] || classificationConfig.BACKUP;
+
+              return (
+                <div
+                  key={r.routeId}
+                  onClick={() => onSelectRoute(r)}
+                  className={`p-3.5 rounded-lg border cursor-pointer transition-all duration-150 relative overflow-hidden ${
+                    isSelected
+                      ? "bg-surface-container-high border-primary shadow-xl shadow-cyan-500/10 ring-1 ring-primary"
+                      : "bg-surface border-grid-line hover:bg-surface-container"
+                  }`}
+                >
+                  <div
+                    className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+                      r.classification === "RECOMMENDED"
+                        ? "bg-primary-container"
+                        : r.classification === "FASTEST"
+                        ? "bg-secondary-fixed-dim"
+                        : r.classification === "LOW_RISK_ALTERNATIVE"
+                        ? "bg-status-success"
+                        : "bg-outline"
+                    }`}
+                  />
+
+                  {/* Classification + Duration */}
+                  <div className="flex items-center justify-between mb-1.5 pl-2">
+                    <span
+                      className={`px-2 py-0.5 rounded font-label-caps text-label-caps uppercase tracking-wider ${cfg.bg} ${cfg.color} border ${cfg.border}`}
+                    >
+                      {r.classification.replace(/_/g, " ")}
+                    </span>
+                    <span className="text-on-surface font-data-mono text-data-mono font-bold text-base">
+                      {Math.round(r.trafficDurationSeconds / 60)}
+                      <span className="text-xs text-on-surface-variant font-normal ml-0.5">
+                        min
+                      </span>
+                    </span>
+                  </div>
+
+                  {/* Route Label */}
+                  <div className="font-bold text-on-surface text-sm pl-2">{r.label}</div>
+                  <div className="font-body-sm text-body-sm text-on-surface-variant mt-0.5 pl-2 truncate">
+                    {r.summary}
+                  </div>
+
+                  {/* Stats Grid */}
+                  <div className="mt-2.5 pt-2 border-t border-grid-line grid grid-cols-3 gap-2 font-data-mono text-data-mono pl-2">
+                    <div>
+                      <span className="text-on-surface-variant">Dist</span>
+                      <div className="text-on-surface font-bold">
+                        {(r.distanceMeters / 1000).toFixed(1)}km
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-on-surface-variant">Congestion</span>
+                      <div className="text-status-warning font-bold">
+                        {Math.round(r.averageCongestion)}%
+                      </div>
+                    </div>
+                    <div>
+                      <span className="text-on-surface-variant">Max Risk</span>
+                      <div
+                        className={`font-bold ${
+                          r.maxRiskScore > 70
+                            ? "text-status-critical"
+                            : r.maxRiskScore > 40
+                            ? "text-status-warning"
+                            : "text-status-success"
+                        }`}
+                      >
+                        {Math.round(r.maxRiskScore)}/100
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Generated Recommendation Reason */}
+                  <div className="mt-2 text-xs text-primary/90 leading-tight pl-2">
+                    {r.recommendationReason}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Selected Route CCTV Fusion Intelligence */}
+      {comp && comp.percentages && (
+        <div className="p-4 rounded-lg bg-surface-container border border-grid-line space-y-3 animate-slide-in-up">
+          <div className="flex items-center justify-between font-label-caps text-label-caps uppercase tracking-wider">
+            <span className="flex items-center gap-1.5 text-primary">
+              <span className="material-symbols-outlined text-[16px]">videocam</span> Route Vehicle
+              Composition
+            </span>
+            <span className="font-data-mono text-data-mono text-on-surface-variant">
               {comp.cameraCount} CCTV Cam(s) Fused
             </span>
           </div>
 
           {/* Vehicle Class Distribution Progress Bars */}
-          <div className="grid grid-cols-2 gap-2 text-[10px]">
+          <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="space-y-1">
-              <div className="flex justify-between text-slate-400">
-                <span className="flex items-center gap-1"><Bike className="w-3 h-3 text-sky-400" /> Two-Wheelers</span>
-                <span className="font-mono font-bold text-white">{comp.percentages.motorcycles}%</span>
-              </div>
-              <div className="w-full h-1 bg-surface-overlay rounded-full overflow-hidden">
-                <div className="h-full bg-sky-400 rounded-full" style={{ width: `${comp.percentages.motorcycles}%` }} />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-slate-400">
-                <span className="flex items-center gap-1"><Car className="w-3 h-3 text-emerald-400" /> Cars</span>
-                <span className="font-mono font-bold text-white">{comp.percentages.cars}%</span>
-              </div>
-              <div className="w-full h-1 bg-surface-overlay rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${comp.percentages.cars}%` }} />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-slate-400">
-                <span className="flex items-center gap-1"><Bus className="w-3 h-3 text-amber-400" /> Buses</span>
-                <span className="font-mono font-bold text-white">{comp.percentages.buses}%</span>
-              </div>
-              <div className="w-full h-1 bg-surface-overlay rounded-full overflow-hidden">
-                <div className="h-full bg-amber-400 rounded-full" style={{ width: `${comp.percentages.buses}%` }} />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-slate-400">
-                <span className="flex items-center gap-1"><Truck className="w-3 h-3 text-rose-400" /> Trucks/Autos</span>
-                <span className="font-mono font-bold text-white">
-                  {(comp.percentages.trucks + (comp.percentages.auto_rickshaws || 0)).toFixed(1)}%
+              <div className="flex justify-between text-on-surface-variant">
+                <span className="flex items-center gap-1">Two-Wheelers</span>
+                <span className="font-data-mono text-data-mono font-bold text-on-surface">
+                  {comp.percentages.motorcycles}%
                 </span>
               </div>
-              <div className="w-full h-1 bg-surface-overlay rounded-full overflow-hidden">
+              <div className="w-full h-1 bg-surface-variant rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-rose-400 rounded-full"
-                  style={{ width: `${comp.percentages.trucks + (comp.percentages.auto_rickshaws || 0)}%` }}
+                  className="h-full bg-primary-container rounded-full"
+                  style={{ width: `${comp.percentages.motorcycles}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-on-surface-variant">
+                <span className="flex items-center gap-1">Cars</span>
+                <span className="font-data-mono text-data-mono font-bold text-on-surface">
+                  {comp.percentages.cars}%
+                </span>
+              </div>
+              <div className="w-full h-1 bg-surface-variant rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-status-success rounded-full"
+                  style={{ width: `${comp.percentages.cars}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-on-surface-variant">
+                <span className="flex items-center gap-1">Buses</span>
+                <span className="font-data-mono text-data-mono font-bold text-on-surface">
+                  {comp.percentages.buses}%
+                </span>
+              </div>
+              <div className="w-full h-1 bg-surface-variant rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-status-warning rounded-full"
+                  style={{ width: `${comp.percentages.buses}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-on-surface-variant">
+                <span className="flex items-center gap-1">Trucks/Autos</span>
+                <span className="font-data-mono text-data-mono font-bold text-on-surface">
+                  {(
+                    comp.percentages.trucks + (comp.percentages.auto_rickshaws || 0)
+                  ).toFixed(1)}
+                  %
+                </span>
+              </div>
+              <div className="w-full h-1 bg-surface-variant rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-status-danger rounded-full"
+                  style={{
+                    width: `${
+                      comp.percentages.trucks + (comp.percentages.auto_rickshaws || 0)
+                    }%`,
+                  }}
                 />
               </div>
             </div>
           </div>
 
           {/* Micro Telemetry Readout */}
-          <div className="pt-2 border-t border-border-subtle grid grid-cols-3 gap-2 text-[9px] font-mono text-slate-400">
+          <div className="pt-2 border-t border-grid-line grid grid-cols-3 gap-2 font-data-mono text-data-mono text-on-surface-variant">
             <div>
               <span>Flow Rate</span>
-              <div className="text-slate-200 font-bold">{comp.flowVehiclesPerMin} <span className="text-[8px] text-slate-500">vpm</span></div>
+              <div className="text-on-surface font-bold">
+                {comp.flowVehiclesPerMin}{" "}
+                <span className="text-xs text-on-surface-variant">vpm</span>
+              </div>
             </div>
             <div>
               <span>Occupancy</span>
-              <div className="text-amber-400 font-bold">{comp.averageOccupancyPct}%</div>
+              <div className="text-status-warning font-bold">
+                {comp.averageOccupancyPct}%
+              </div>
             </div>
             <div>
               <span>Queue Est.</span>
-              <div className="text-rose-400 font-bold">{comp.queuePressureMeters}m</div>
+              <div className="text-status-critical font-bold">
+                {comp.queuePressureMeters}m
+              </div>
             </div>
           </div>
         </div>

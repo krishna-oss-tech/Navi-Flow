@@ -28,7 +28,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={`dark ${inter.variable} ${jetbrainsMono.variable}`}>
-      <body className="bg-[#070a0f] text-slate-100 antialiased overflow-hidden min-h-screen font-sans">
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+      <body className="bg-background text-on-surface h-screen w-screen overflow-hidden flex flex-col font-body-lg antialiased">
         {children}
       </body>
     </html>

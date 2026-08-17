@@ -1,5 +1,14 @@
 export type RiskSeverity = "LOW" | "MODERATE" | "HIGH" | "CRITICAL";
 
+export interface LocationPlace {
+  id: string;
+  name: string;
+  area: string;
+  category?: string;
+  lat: number;
+  lon: number;
+}
+
 export interface Junction {
   id: string;
   name: string;

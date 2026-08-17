@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Activity, X, Play, TrendingUp, CheckCircle2 } from "lucide-react";
 import { NetworkSummary } from "@/types";
 import { API_BASE_URL } from "@/utils/api";
 
@@ -28,7 +27,9 @@ export const SimulationModal: React.FC<SimulationModalProps> = ({
   data,
   targetJunctionId,
 }) => {
-  const [selectedJunction, setSelectedJunction] = useState<string>(targetJunctionId || "j_sitabuldi");
+  const [selectedJunction, setSelectedJunction] = useState<string>(
+    targetJunctionId || "j_sitabuldi"
+  );
   const [incidentType, setIncidentType] = useState<string>("accident");
   const [blockedLanes, setBlockedLanes] = useState<number>(2);
   const [capacityReduction, setCapacityReduction] = useState<number>(65);
@@ -75,7 +76,8 @@ export const SimulationModal: React.FC<SimulationModalProps> = ({
       throw new Error("Server returned non-200");
     } catch (e) {
       // Deterministic client-side shockwave propagation fallback
-      const targetJ = junctionOptions.find((j) => j.junctionId === selectedJunction) || junctionOptions[0];
+      const targetJ =
+        junctionOptions.find((j) => j.junctionId === selectedJunction) || junctionOptions[0];
       const shockFactor = capacityReduction / 100.0;
       const baselineSpeed = 38.0;
       const simulatedSpeed = Math.max(8.0, Math.round(baselineSpeed * (1.0 - shockFactor * 0.75)));
@@ -99,6 +101,11 @@ export const SimulationModal: React.FC<SimulationModalProps> = ({
         impactAssessment: `Capacity reduced by ${capacityReduction}%. BPR shockwave propagates upstream with an estimated queue spillback of ${Math.round(
           blockedLanes * 85 * shockFactor
         )}m. Alternate diversion corridors recommended.`,
+        affectedCorridors: [
+          "Wardha Rd (Inbound to Sitabuldi)",
+          "Central Avenue Arterial (Eastbound)",
+          "Great Nag Road (Medical Sq Bypass)",
+        ],
       });
     } finally {
       setLoading(false);
@@ -107,45 +114,45 @@ export const SimulationModal: React.FC<SimulationModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4 select-none animate-fade-in">
-      <div className="w-full max-w-3xl glass-accent rounded-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-scale-in">
+      <div className="w-full max-w-3xl bg-surface-elevated rounded-xl border border-grid-line overflow-hidden shadow-2xl flex flex-col max-h-[90vh] animate-scale-in">
         {/* Header */}
-        <div className="p-4 border-b border-border-subtle flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-accent-blue/15 text-accent-blue border border-accent-blue/20">
-              <Activity className="w-4 h-4" />
+        <div className="p-5 border-b border-grid-line bg-surface-container-low flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded bg-primary/10 text-primary border border-primary/30 flex items-center justify-center">
+              <span className="material-symbols-outlined text-[20px]">analytics</span>
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                What-If Simulator
-                <span className="text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/20">
-                  SIMULATED
+              <h3 className="font-headline-md text-headline-md font-bold text-on-surface flex items-center gap-2">
+                What-If Disruption Simulator
+                <span className="font-data-mono text-data-mono px-2 py-0.5 rounded-full bg-status-warning/15 text-status-warning border border-status-warning/30">
+                  SHOCKWAVE MODEL
                 </span>
               </h3>
-              <p className="text-[10px] text-slate-500">
-                Evaluate capacity shocks &amp; shockwave propagation
+              <p className="font-body-sm text-body-sm text-on-surface-variant">
+                Deterministic BPR bottleneck simulation &amp; queue propagation
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-surface hover:bg-surface-raised text-slate-500 hover:text-white transition-colors"
+            className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-colors"
           >
-            <X className="w-4 h-4" />
+            <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
         {/* Body */}
-        <div className="p-5 overflow-y-auto space-y-5">
+        <div className="p-6 overflow-y-auto space-y-6">
           {/* Controls */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface p-4 rounded-xl border border-border-subtle text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-surface p-5 rounded-lg border border-grid-line">
             <div className="space-y-1.5">
-              <label className="text-slate-500 font-bold uppercase text-[9px] tracking-wider">
-                Target Junction
+              <label className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider block">
+                Target Node
               </label>
               <select
                 value={selectedJunction}
                 onChange={(e) => setSelectedJunction(e.target.value)}
-                className="w-full bg-surface-overlay border border-border rounded-lg p-2 text-white text-xs focus:outline-none focus:border-accent-blue transition-colors"
+                className="w-full bg-surface-container border border-outline-variant rounded p-2.5 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary transition-colors"
               >
                 {junctionOptions.map((j) => (
                   <option key={j.junctionId} value={j.junctionId}>
@@ -156,24 +163,24 @@ export const SimulationModal: React.FC<SimulationModalProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-slate-500 font-bold uppercase text-[9px] tracking-wider">
-                Incident Type
+              <label className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider block">
+                Incident Classification
               </label>
               <select
                 value={incidentType}
                 onChange={(e) => setIncidentType(e.target.value)}
-                className="w-full bg-surface-overlay border border-border rounded-lg p-2 text-white text-xs focus:outline-none focus:border-accent-blue transition-colors"
+                className="w-full bg-surface-container border border-outline-variant rounded p-2.5 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary transition-colors"
               >
-                <option value="accident">Multi-Vehicle Accident</option>
-                <option value="lane_blockage">Stalled Vehicle / Lane Blockage</option>
-                <option value="closure">Emergency Road Closure</option>
-                <option value="waterlogging">Monsoon Waterlogging</option>
-                <option value="roadworks">Metro Rail Construction</option>
+                <option value="accident">Multi-Vehicle Collision</option>
+                <option value="lane_blockage">Stalled Heavy Vehicle / Lane Block</option>
+                <option value="closure">Emergency Corridor Closure</option>
+                <option value="waterlogging">Monsoon Waterlogging Chokepoint</option>
+                <option value="roadworks">Metro Rail Construction Barrier</option>
               </select>
             </div>
 
-            <div className="space-y-1.5">
-              <div className="flex justify-between text-slate-500 font-bold uppercase text-[9px] tracking-wider">
+            <div className="space-y-2">
+              <div className="flex justify-between font-label-caps text-label-caps text-on-surface-variant uppercase">
                 <span>Blocked Lanes: {blockedLanes}</span>
                 <span>Capacity Shock: {capacityReduction}%</span>
               </div>
@@ -187,7 +194,7 @@ export const SimulationModal: React.FC<SimulationModalProps> = ({
                   setCapacityReduction(val);
                   setBlockedLanes(val > 50 ? 2 : 1);
                 }}
-                className="w-full accent-sky-400"
+                className="w-full accent-primary"
               />
             </div>
 
@@ -195,10 +202,10 @@ export const SimulationModal: React.FC<SimulationModalProps> = ({
               <button
                 onClick={handleRun}
                 disabled={loading}
-                className="w-full py-2.5 rounded-lg bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 font-bold text-white text-xs flex items-center justify-center gap-2 shadow-lg shadow-sky-600/15 transition-all active:scale-[0.98]"
+                className="w-full py-2.5 rounded bg-primary text-on-primary font-bold font-body-sm text-body-sm flex items-center justify-center gap-2 shadow-lg shadow-cyan-500/10 transition-all hover:bg-primary-fixed active:scale-[0.98]"
               >
-                <Play className="w-3.5 h-3.5 fill-current" />
-                {loading ? "Computing..." : "Execute Simulation"}
+                <span className="material-symbols-outlined text-[18px]">play_arrow</span>
+                {loading ? "Simulating Shockwave..." : "Run Shockwave Simulation"}
               </button>
             </div>
           </div>
@@ -206,69 +213,87 @@ export const SimulationModal: React.FC<SimulationModalProps> = ({
           {/* Results */}
           {simResult && (
             <div className="space-y-4 animate-slide-in-up">
-              <div className="flex items-center gap-2 text-[10px] font-bold text-accent-blue uppercase tracking-wider">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                Baseline vs Disruption Comparison
+              <div className="flex items-center gap-2 font-label-caps text-label-caps text-primary uppercase tracking-wider">
+                <span className="material-symbols-outlined text-[18px] text-status-success">
+                  check_circle
+                </span>
+                Baseline vs Disruption Comparison Matrix
               </div>
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
                   {
-                    label: "Baseline ETA",
-                    value: `${Math.round(simResult.baselineAverageEtaSeconds)}s`,
-                    color: "text-emerald-400",
-                    sub: "Normal flow",
+                    label: "Baseline Speed",
+                    value: `${simResult.baselineAverageSpeedKmh || 38.0} km/h`,
+                    color: "text-status-success",
+                    sub: "Nominal flow",
                   },
                   {
-                    label: "Disrupted ETA",
-                    value: `${Math.round(simResult.simulatedAverageEtaSeconds)}s`,
-                    color: "text-red-400",
-                    sub: `+${simResult.beforeAfterDelta.travelTimeInflationPct}% inflation`,
+                    label: "Disrupted Speed",
+                    value: `${simResult.simulatedAverageSpeedKmh || 12.0} km/h`,
+                    color: "text-status-critical",
+                    sub: "Corridor bottleneck",
                   },
                   {
-                    label: "Network Delay",
-                    value: `${Math.round(simResult.networkDelaySeconds)}s`,
-                    color: "text-amber-400",
-                    sub: "Cumulative",
+                    label: "Queue Spillback",
+                    value: `${simResult.spillbackQueueMeters || 110}m`,
+                    color: "text-status-warning",
+                    sub: "Shockwave queue",
                   },
                   {
-                    label: "Police Recovery",
-                    value: `-${simResult.beforeAfterDelta.projectedRiskReductionWithPolicePct}%`,
-                    color: "text-sky-400",
-                    sub: "Projected risk reduction",
+                    label: "Shockwave Radius",
+                    value: `${simResult.shockwaveRadiusKm || 1.8} km`,
+                    color: "text-primary",
+                    sub: "Impact radius",
                   },
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className="p-3.5 rounded-xl bg-surface border border-border-subtle"
+                    className="p-4 rounded-lg bg-surface border border-grid-line"
                   >
-                    <div className="text-[9px] uppercase font-bold text-slate-500 tracking-wider">
+                    <div className="font-label-caps text-label-caps uppercase text-on-surface-variant tracking-wider">
                       {stat.label}
                     </div>
-                    <div className={`text-lg font-black font-mono mt-1 ${stat.color}`}>
+                    <div
+                      className={`font-display-metrics text-headline-lg font-bold font-mono mt-1 ${stat.color}`}
+                    >
                       {stat.value}
                     </div>
-                    <div className="text-[9px] text-slate-500 mt-0.5">{stat.sub}</div>
+                    <div className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+                      {stat.sub}
+                    </div>
                   </div>
                 ))}
               </div>
 
-              {/* Affected Corridors */}
-              <div className="p-3.5 rounded-xl bg-surface border border-border-subtle">
-                <div className="text-[10px] font-bold text-slate-400 mb-2">
-                  Shockwave Propagated Corridors
+              {/* Assessment Narrative */}
+              <div className="p-4 rounded-lg bg-surface-container border border-grid-line">
+                <div className="font-label-caps text-label-caps text-on-surface uppercase tracking-wider mb-1">
+                  Automated Impact Assessment
                 </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {simResult.affectedCorridors.map((c: string, i: number) => (
-                    <span
-                      key={i}
-                      className="px-2 py-1 rounded-lg bg-red-500/8 text-red-400 border border-red-500/15 text-[10px] font-medium"
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
+                <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                  {simResult.impactAssessment}
+                </p>
               </div>
+
+              {/* Affected Corridors */}
+              {simResult.affectedCorridors && (
+                <div className="p-4 rounded-lg bg-surface border border-grid-line">
+                  <div className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider mb-2">
+                    Shockwave Propagated Corridors
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {simResult.affectedCorridors.map((c: string, i: number) => (
+                      <span
+                        key={i}
+                        className="px-2.5 py-1 rounded bg-status-critical/10 text-status-critical border border-status-critical/20 font-body-sm text-body-sm"
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

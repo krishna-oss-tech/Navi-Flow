@@ -1,26 +1,16 @@
 "use client";
 
 import React from "react";
-import {
-  LayoutDashboard,
-  Activity,
-  Flame,
-  Navigation,
-  AlertTriangle,
-  ShieldCheck,
-  Camera,
-  FileText,
-} from "lucide-react";
 import { NetworkSummary } from "@/types";
 
 export type NavTab =
   | "overview"
   | "traffic"
   | "risk"
-  | "routes"
   | "incidents"
-  | "police"
   | "cctv"
+  | "routes"
+  | "police"
   | "simulation"
   | "audit";
 
@@ -28,41 +18,44 @@ interface IconBarProps {
   activeTab: NavTab;
   onSelectTab: (tab: NavTab) => void;
   data: NetworkSummary | null;
+  onOpenSystemStatus?: () => void;
 }
 
 const navItems: {
   id: NavTab;
   label: string;
-  icon: React.ElementType;
+  iconName: string;
   badgeKey?: "incidents" | "recommendations";
   badgeColor?: string;
 }[] = [
-  { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "traffic", label: "Traffic Flow", icon: Activity },
-  { id: "risk", label: "Risk Matrix", icon: Flame },
-  { id: "routes", label: "Route Planner", icon: Navigation },
+  { id: "overview", label: "Overview", iconName: "dashboard" },
+  { id: "traffic", label: "Live Traffic", iconName: "traffic" },
+  { id: "risk", label: "Risk Matrix", iconName: "warning" },
   {
     id: "incidents",
     label: "Incidents",
-    icon: AlertTriangle,
+    iconName: "emergency",
     badgeKey: "incidents",
-    badgeColor: "bg-red-500",
+    badgeColor: "bg-status-critical",
   },
+  { id: "cctv", label: "CCTV Vision", iconName: "videocam" },
+  { id: "routes", label: "Route Planner", iconName: "directions" },
   {
     id: "police",
-    label: "Dispatch",
-    icon: ShieldCheck,
+    label: "Police Dispatch",
+    iconName: "local_police",
     badgeKey: "recommendations",
-    badgeColor: "bg-sky-500",
+    badgeColor: "bg-primary-container text-on-primary-container",
   },
-  { id: "cctv", label: "CCTV Vision", icon: Camera },
-  { id: "audit", label: "Audit Log", icon: FileText },
+  { id: "simulation", label: "What-If Simulation", iconName: "query_stats" },
+  { id: "audit", label: "Audit Ledger", iconName: "history" },
 ];
 
 export const IconBar: React.FC<IconBarProps> = ({
   activeTab,
   onSelectTab,
   data,
+  onOpenSystemStatus,
 }) => {
   const getBadgeCount = (key?: "incidents" | "recommendations"): number => {
     if (!data || !key) return 0;
@@ -72,11 +65,10 @@ export const IconBar: React.FC<IconBarProps> = ({
   };
 
   return (
-    <aside className="w-iconbar flex flex-col items-center justify-between py-3 glass border-r border-border-subtle z-30 select-none shrink-0">
-      {/* Navigation Icons */}
-      <div className="flex flex-col items-center gap-1">
+    <aside className="bg-surface-elevated border-r border-grid-line h-full w-[64px] flex flex-col py-4 shrink-0 z-40 select-none">
+      {/* Main Navigation Stack */}
+      <nav className="flex flex-col items-center space-y-3 flex-1 w-full">
         {navItems.map((item) => {
-          const Icon = item.icon;
           const isActive = activeTab === item.id;
           const badge = getBadgeCount(item.badgeKey);
 
@@ -85,46 +77,53 @@ export const IconBar: React.FC<IconBarProps> = ({
               key={item.id}
               onClick={() => onSelectTab(item.id)}
               title={item.label}
-              className={`relative w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 group ${
+              className={`w-12 h-12 rounded flex items-center justify-center transition-all duration-150 active:scale-95 group relative ${
                 isActive
-                  ? "bg-accent-blue/15 text-accent-blue shadow-glow-blue"
-                  : "text-slate-500 hover:text-slate-200 hover:bg-white/5"
+                  ? "bg-secondary-container text-on-secondary-container border-l-2 border-primary"
+                  : "text-on-surface-variant hover:bg-surface-variant hover:text-primary"
               }`}
             >
-              {/* Active indicator bar */}
-              {isActive && (
-                <div className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-accent-blue" />
-              )}
+              <span
+                className="material-symbols-outlined text-[22px]"
+                style={{ fontVariationSettings: isActive ? "'FILL' 1" : "'FILL' 0" }}
+              >
+                {item.iconName}
+              </span>
 
-              <Icon className="w-[18px] h-[18px]" />
-
-              {/* Badge */}
+              {/* Badge counter */}
               {badge > 0 && (
                 <span
-                  className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white flex items-center justify-center ${item.badgeColor}`}
+                  className={`absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center ${
+                    item.badgeColor || "bg-status-critical text-white"
+                  }`}
                 >
                   {badge}
                 </span>
               )}
 
-              {/* Tooltip */}
-              <span className="absolute left-full ml-3 px-2.5 py-1 rounded-lg bg-surface-overlay text-xs font-medium text-white whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 shadow-panel border border-border-subtle z-50">
+              {/* Hover Tooltip */}
+              <span className="absolute left-full ml-3 px-2.5 py-1 rounded bg-surface-container-high text-xs font-medium text-on-surface whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 shadow-2xl border border-grid-line z-50">
                 {item.label}
               </span>
             </button>
           );
         })}
-      </div>
+      </nav>
 
-      {/* Bottom — Status Indicator */}
-      <div className="flex flex-col items-center gap-2">
-        <div className="w-8 h-px bg-white/10" />
-        <div className="relative group">
-          <div className="status-dot status-dot-live" />
-          <span className="absolute left-full ml-3 px-2.5 py-1 rounded-lg bg-surface-overlay text-[10px] font-mono text-emerald-400 whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-200 shadow-panel border border-border-subtle z-50">
-            Nagpur LIVE
+      {/* Bottom Hardware Status */}
+      <div className="mt-auto flex flex-col items-center space-y-3 pt-3 border-t border-grid-line w-full">
+        <button
+          onClick={onOpenSystemStatus}
+          className="w-12 h-12 rounded text-status-success hover:bg-surface-variant transition-all duration-150 active:scale-95 flex items-center justify-center relative group"
+          title="System Telemetry: Online & Synced"
+        >
+          <span className="material-symbols-outlined text-[22px]">memory</span>
+          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-status-success animate-pulse" />
+
+          <span className="absolute left-full ml-3 px-2.5 py-1 rounded bg-surface-container-high text-xs font-medium text-status-success whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 shadow-2xl border border-grid-line z-50">
+            System: Optimal (96% conf)
           </span>
-        </div>
+        </button>
       </div>
     </aside>
   );

@@ -2,76 +2,60 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
-import { NetworkSummary, RouteCandidate } from "@/types";
-import { Layers, Globe, Moon, Sun, Camera as CameraIcon } from "lucide-react";
-
-export type BasemapMode = "DARK" | "STANDARD" | "SATELLITE" | "TRAFFIC";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { NetworkSummary, RouteCandidate, LocationPlace } from "@/types";
 
 interface MapViewerProps {
   data: NetworkSummary | null;
   selectedJunctionId: string | null;
   onSelectJunction: (junctionId: string) => void;
-  onSelectCamera?: (cameraId: string) => void;
-  activeRoute: RouteCandidate | null;
   activeLayers: {
     traffic: boolean;
-    risk: boolean;
     incidents: boolean;
     police: boolean;
     cameras: boolean;
+    risk: boolean;
     routes: boolean;
   };
+  activeRoute?: RouteCandidate | null;
+  allRoutes?: RouteCandidate[];
+  originPlace?: LocationPlace | null;
+  destPlace?: LocationPlace | null;
+  onSelectRoute?: (route: RouteCandidate) => void;
+  onSelectCamera?: (cameraId: string) => void;
 }
+
+type BasemapMode = "DARK" | "STANDARD" | "SATELLITE";
 
 const BASEMAP_CONFIG: Record<
   BasemapMode,
-  { tiles: string[]; maxBrightness: number; contrast: number; saturation: number; label: string; icon: any }
+  { tiles: string[]; maxBrightness: number; contrast: number; saturation: number }
 > = {
   DARK: {
     tiles: [
-      "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-      "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
-      "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+      "https://a.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png",
+      "https://b.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}@2x.png",
     ],
-    maxBrightness: 0.55,
-    contrast: 0.2,
-    saturation: -0.3,
-    label: "Dark Mode",
-    icon: Moon,
+    maxBrightness: 0.9,
+    contrast: 0.15,
+    saturation: -0.2,
   },
   STANDARD: {
     tiles: [
-      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
       "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "https://b.tile.openstreetmap.org/{z}/{x}/{y}.png",
     ],
-    maxBrightness: 0.95,
-    contrast: 0.05,
+    maxBrightness: 1.0,
+    contrast: 0.0,
     saturation: 0.0,
-    label: "Standard OSM",
-    icon: Sun,
   },
   SATELLITE: {
     tiles: [
-      process.env.NEXT_PUBLIC_SATELLITE_TILE_URL ||
-        "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
       "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     ],
     maxBrightness: 1.0,
     contrast: 0.1,
-    saturation: 0.05,
-    label: "Satellite Imagery",
-    icon: Globe,
-  },
-  TRAFFIC: {
-    tiles: [
-      "https://a.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}@2x.png",
-      "https://b.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}@2x.png",
-    ],
-    maxBrightness: 0.65,
-    contrast: 0.25,
-    saturation: -0.4,
-    label: "Traffic Focused",
-    icon: Layers,
+    saturation: 0.1,
   },
 };
 
@@ -79,9 +63,13 @@ export const MapViewer: React.FC<MapViewerProps> = ({
   data,
   selectedJunctionId,
   onSelectJunction,
-  onSelectCamera,
-  activeRoute,
   activeLayers,
+  activeRoute,
+  allRoutes = [],
+  originPlace,
+  destPlace,
+  onSelectRoute,
+  onSelectCamera,
 }) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -89,11 +77,9 @@ export const MapViewer: React.FC<MapViewerProps> = ({
   const [basemapMode, setBasemapMode] = useState<BasemapMode>("DARK");
   const [isStyleLoaded, setIsStyleLoaded] = useState(false);
 
-  // Initialize MapLibre GL JS
+  // Initialize MapLibre
   useEffect(() => {
-    if (!mapContainer.current || map.current) return;
-
-    const initialConfig = BASEMAP_CONFIG[basemapMode];
+    if (!mapContainer.current) return;
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
@@ -102,9 +88,9 @@ export const MapViewer: React.FC<MapViewerProps> = ({
         sources: {
           "basemap-source": {
             type: "raster",
-            tiles: initialConfig.tiles,
+            tiles: BASEMAP_CONFIG.DARK.tiles,
             tileSize: 256,
-            attribution: "© OpenStreetMap contributors © CARTO © Esri",
+            attribution: "© OpenStreetMap © CARTO",
           },
         },
         layers: [
@@ -113,29 +99,30 @@ export const MapViewer: React.FC<MapViewerProps> = ({
             type: "raster",
             source: "basemap-source",
             paint: {
-              "raster-brightness-max": initialConfig.maxBrightness,
-              "raster-contrast": initialConfig.contrast,
-              "raster-saturation": initialConfig.saturation,
+              "raster-brightness-max": 0.9,
+              "raster-contrast": 0.15,
+              "raster-saturation": -0.2,
             },
           },
         ],
       },
-      center: [79.0834, 21.142], // Nagpur Zero Mile
-      zoom: 13.6,
-      pitch: 38,
-      bearing: -10,
+      center: [79.0882, 21.1458], // Nagpur Center (Zero Mile)
+      zoom: 13.2,
+      pitch: 42,
+      bearing: -15,
+      antialias: true,
     });
-
-    map.current.addControl(
-      new maplibregl.NavigationControl({ showCompass: true, visualizePitch: true }),
-      "top-right"
-    );
 
     map.current.on("load", () => {
       if (!map.current) return;
 
-      // Add GeoJSON sources for Roads & Routes
+      // Sources
       map.current.addSource("roads-source", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.current.addSource("multi-routes-source", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
@@ -145,58 +132,99 @@ export const MapViewer: React.FC<MapViewerProps> = ({
         data: { type: "FeatureCollection", features: [] },
       });
 
-      // Road outer glow layer
+      // Road glow & core layers
       map.current.addLayer({
         id: "roads-glow",
         type: "line",
         source: "roads-source",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-width": 10,
+          "line-width": 9,
           "line-blur": 4,
-          "line-opacity": 0.4,
+          "line-opacity": 0.35,
           "line-color": ["get", "color"],
         },
       });
 
-      // Road core line layer
       map.current.addLayer({
         id: "roads-core",
         type: "line",
         source: "roads-source",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-width": 4,
+          "line-width": 3.8,
           "line-color": ["get", "color"],
           "line-opacity": 0.92,
         },
       });
 
-      // Route highlight outer glow
+      // Multi-Route Alternative lines (distinguishable hierarchy)
+      map.current.addLayer({
+        id: "multi-routes-glow",
+        type: "line",
+        source: "multi-routes-source",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-width": ["get", "glowWidth"],
+          "line-blur": 5,
+          "line-color": ["get", "color"],
+          "line-opacity": ["get", "glowOpacity"],
+        },
+      });
+
+      map.current.addLayer({
+        id: "multi-routes-line",
+        type: "line",
+        source: "multi-routes-source",
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: {
+          "line-width": ["get", "lineWidth"],
+          "line-color": ["get", "color"],
+          "line-opacity": 0.95,
+        },
+      });
+
+      // Route highlight outer glow for active route
       map.current.addLayer({
         id: "route-glow",
         type: "line",
         source: "route-source",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-width": 14,
-          "line-blur": 6,
-          "line-color": "#38bdf8",
-          "line-opacity": 0.45,
+          "line-width": 16,
+          "line-blur": 7,
+          "line-color": "#00f2ff",
+          "line-opacity": 0.5,
         },
       });
 
-      // Route highlight core line
       map.current.addLayer({
         id: "route-highlight",
         type: "line",
         source: "route-source",
         layout: { "line-join": "round", "line-cap": "round" },
         paint: {
-          "line-width": 5.5,
-          "line-color": "#38bdf8",
-          "line-opacity": 0.98,
+          "line-width": 6.5,
+          "line-color": "#00f2ff",
+          "line-opacity": 1.0,
         },
+      });
+
+      // Click on candidate routes
+      map.current.on("click", "multi-routes-line", (e) => {
+        if (!e.features || e.features.length === 0) return;
+        const clickedId = e.features[0].properties?.id;
+        const matched = allRoutes.find((r) => r.routeId === clickedId);
+        if (matched) {
+          onSelectRoute?.(matched);
+        }
+      });
+
+      map.current.on("mouseenter", "multi-routes-line", () => {
+        if (map.current) map.current.getCanvas().style.cursor = "pointer";
+      });
+      map.current.on("mouseleave", "multi-routes-line", () => {
+        if (map.current) map.current.getCanvas().style.cursor = "";
       });
 
       setIsStyleLoaded(true);
@@ -283,14 +311,72 @@ export const MapViewer: React.FC<MapViewerProps> = ({
     }
   }, [data, activeLayers.traffic]);
 
-  // Update active route line
+  // Update Multi-Route Candidates on Map
   useEffect(() => {
     if (!map.current) return;
-    const source = map.current.getSource("route-source") as maplibregl.GeoJSONSource;
-    if (!source) return;
+    const multiSource = map.current.getSource("multi-routes-source") as maplibregl.GeoJSONSource;
+    const activeSource = map.current.getSource("route-source") as maplibregl.GeoJSONSource;
 
-    if (activeRoute && activeLayers.routes) {
-      source.setData({
+    if (!multiSource || !activeSource) return;
+
+    if (!activeLayers.routes || allRoutes.length === 0) {
+      multiSource.setData({ type: "FeatureCollection", features: [] });
+      activeSource.setData({ type: "FeatureCollection", features: [] });
+      return;
+    }
+
+    // Build features for all alternative routes
+    const features = allRoutes.map((r, idx) => {
+      const isSelected = activeRoute?.routeId === r.routeId;
+      let color = "#64748b"; // Muted fallback
+      let lineWidth = 3.5;
+      let glowWidth = 8;
+      let glowOpacity = 0.2;
+
+      if (r.classification === "RECOMMENDED") {
+        color = "#00f2ff"; // Bright Cyan
+        lineWidth = isSelected ? 6.5 : 5.0;
+        glowWidth = 14;
+        glowOpacity = 0.45;
+      } else if (r.classification === "FASTEST") {
+        color = "#818cf8"; // Secondary Indigo
+        lineWidth = isSelected ? 6.0 : 4.5;
+        glowWidth = 12;
+        glowOpacity = 0.35;
+      } else if (r.classification === "LOW_RISK_ALTERNATIVE") {
+        color = "#10b981"; // Emerald
+        lineWidth = isSelected ? 6.0 : 4.5;
+        glowWidth = 12;
+        glowOpacity = 0.35;
+      }
+
+      return {
+        type: "Feature",
+        properties: {
+          id: r.routeId,
+          label: r.label,
+          classification: r.classification,
+          color,
+          lineWidth,
+          glowWidth,
+          glowOpacity,
+          isSelected,
+        },
+        geometry: {
+          type: "LineString",
+          coordinates: r.geometry,
+        },
+      };
+    });
+
+    multiSource.setData({
+      type: "FeatureCollection",
+      features: features as any,
+    });
+
+    // Active route top highlight
+    if (activeRoute) {
+      activeSource.setData({
         type: "FeatureCollection",
         features: [
           {
@@ -303,18 +389,78 @@ export const MapViewer: React.FC<MapViewerProps> = ({
           },
         ] as any,
       });
+
+      // Fit map bounds to encompass active route coordinates
+      if (activeRoute.geometry && activeRoute.geometry.length > 1) {
+        const bounds = new maplibregl.LngLatBounds();
+        activeRoute.geometry.forEach((coord) => bounds.extend(coord as [number, number]));
+        map.current.fitBounds(bounds, { padding: 90, maxZoom: 14.5, duration: 800 });
+      }
     } else {
-      source.setData({ type: "FeatureCollection", features: [] });
+      activeSource.setData({ type: "FeatureCollection", features: [] });
     }
-  }, [activeRoute, activeLayers.routes]);
+  }, [allRoutes, activeRoute, activeLayers.routes]);
+
+  // Origin (FROM) and Destination (TO) Map Markers
+  useEffect(() => {
+    if (!map.current) return;
+
+    // Origin Marker (Green Pin)
+    const originKey = "marker_origin_pin";
+    if (originPlace && activeLayers.routes) {
+      let m = markersRef.current[originKey];
+      if (!m) {
+        const el = document.createElement("div");
+        el.className = "cursor-pointer animate-bounce";
+        el.innerHTML = `
+          <div style="background: #10b981; color: #000; padding: 4px 8px; border-radius: 9999px; font-weight: bold; font-size: 11px; box-shadow: 0 0 14px rgba(16, 185, 129, 0.7); display: flex; items-center: center; gap: 3px; border: 1.5px solid #fff;">
+            <span>A</span> <span>${originPlace.name.split(" ")[0]}</span>
+          </div>
+        `;
+        m = new maplibregl.Marker({ element: el })
+          .setLngLat([originPlace.lon, originPlace.lat])
+          .addTo(map.current);
+        markersRef.current[originKey] = m;
+      } else {
+        m.setLngLat([originPlace.lon, originPlace.lat]);
+      }
+    } else if (markersRef.current[originKey]) {
+      markersRef.current[originKey].remove();
+      delete markersRef.current[originKey];
+    }
+
+    // Destination Marker (Red Pin)
+    const destKey = "marker_dest_pin";
+    if (destPlace && activeLayers.routes) {
+      let m = markersRef.current[destKey];
+      if (!m) {
+        const el = document.createElement("div");
+        el.className = "cursor-pointer animate-bounce";
+        el.innerHTML = `
+          <div style="background: #ef4444; color: #fff; padding: 4px 8px; border-radius: 9999px; font-weight: bold; font-size: 11px; box-shadow: 0 0 14px rgba(239, 68, 68, 0.7); display: flex; items-center: center; gap: 3px; border: 1.5px solid #fff;">
+            <span>B</span> <span>${destPlace.name.split(" ")[0]}</span>
+          </div>
+        `;
+        m = new maplibregl.Marker({ element: el })
+          .setLngLat([destPlace.lon, destPlace.lat])
+          .addTo(map.current);
+        markersRef.current[destKey] = m;
+      } else {
+        m.setLngLat([destPlace.lon, destPlace.lat]);
+      }
+    } else if (markersRef.current[destKey]) {
+      markersRef.current[destKey].remove();
+      delete markersRef.current[destKey];
+    }
+  }, [originPlace, destPlace, activeLayers.routes]);
 
   // Update markers (Junctions, Incidents, Officers, CCTV Cameras)
   useEffect(() => {
     if (!map.current || !data) return;
 
     // 1. Junction Risk Markers
-    Object.values(data.junctionRisks).forEach((jr) => {
-      const markerKey = `junc_${jr.junctionId}`;
+    Object.values(data.junctionRisks).forEach((junction) => {
+      const markerKey = `junc_${junction.junctionId}`;
       let marker = markersRef.current[markerKey];
 
       if (!activeLayers.risk) {
@@ -325,51 +471,50 @@ export const MapViewer: React.FC<MapViewerProps> = ({
         return;
       }
 
-      const isCritical = jr.severity === "CRITICAL";
-      const isHigh = jr.severity === "HIGH";
-      const isSelected = selectedJunctionId === jr.junctionId;
+      const isSelected = selectedJunctionId === junction.junctionId;
+      const sevClass =
+        junction.severity === "CRITICAL"
+          ? "critical"
+          : junction.severity === "HIGH" || junction.severity === "MODERATE"
+          ? "moderate"
+          : junction.policeAssigned
+          ? "police"
+          : "";
 
-      const ringColor = isCritical
-        ? "border-red-500"
-        : isHigh
-        ? "border-orange-500"
-        : "border-emerald-500";
+      const iconName =
+        junction.severity === "CRITICAL"
+          ? "emergency"
+          : junction.severity === "HIGH" || junction.severity === "MODERATE"
+          ? "warning"
+          : junction.policeAssigned
+          ? "local_police"
+          : "adjust";
 
-      const bgColor = isCritical
-        ? "bg-red-500"
-        : isHigh
-        ? "bg-orange-500"
-        : "bg-emerald-500";
-
-      const glowStyle = isCritical
-        ? "box-shadow: 0 0 16px rgba(239,68,68,0.6)"
-        : isHigh
-        ? "box-shadow: 0 0 12px rgba(249,115,22,0.5)"
-        : "box-shadow: 0 0 8px rgba(34,197,94,0.35)";
+      const iconColor =
+        junction.severity === "CRITICAL"
+          ? "text-status-critical"
+          : junction.severity === "HIGH" || junction.severity === "MODERATE"
+          ? "text-status-warning"
+          : junction.policeAssigned
+          ? "text-primary"
+          : "text-status-success";
 
       let el = marker?.getElement();
       if (!el) {
         el = document.createElement("div");
-        el.className = "cursor-pointer transition-transform duration-200 hover:scale-115";
-        el.onclick = () => onSelectJunction(jr.junctionId);
-
+        el.className = "cursor-pointer transition-transform duration-150 hover:scale-110";
+        el.onclick = () => onSelectJunction(junction.junctionId);
         marker = new maplibregl.Marker({ element: el })
-          .setLngLat([jr.lon, jr.lat])
+          .setLngLat([junction.lon, junction.lat])
           .addTo(map.current!);
         markersRef.current[markerKey] = marker;
+      } else {
+        el.onclick = () => onSelectJunction(junction.junctionId);
       }
 
       el.innerHTML = `
-        <div class="relative flex items-center justify-center">
-          ${isCritical ? '<div class="absolute w-10 h-10 rounded-full bg-red-500/25 animate-ping"></div>' : ""}
-          <div
-            class="w-7 h-7 rounded-full border-2 ${ringColor} ${bgColor}/95 flex items-center justify-center text-[9px] font-black text-white backdrop-blur-sm ${
-              isSelected ? "ring-2 ring-white ring-offset-1 ring-offset-black" : ""
-            }"
-            style="${glowStyle}"
-          >
-            ${Math.round(jr.riskScore)}
-          </div>
+        <div class="map-marker ${sevClass} ${isSelected ? "ring-2 ring-primary scale-125" : ""}">
+          <span class="material-symbols-outlined text-[15px] ${iconColor}">${iconName}</span>
         </div>
       `;
     });
@@ -390,7 +535,7 @@ export const MapViewer: React.FC<MapViewerProps> = ({
       let el = marker?.getElement();
       if (!el) {
         el = document.createElement("div");
-        el.className = "cursor-pointer";
+        el.className = "cursor-pointer transition-transform duration-150 hover:scale-110";
         marker = new maplibregl.Marker({ element: el })
           .setLngLat([inc.lon, inc.lat])
           .addTo(map.current!);
@@ -398,18 +543,15 @@ export const MapViewer: React.FC<MapViewerProps> = ({
       }
 
       el.innerHTML = `
-        <div class="relative flex items-center justify-center">
-          <div class="absolute w-10 h-10 rounded-full bg-red-500/30 animate-ping"></div>
-          <div class="w-8 h-8 rounded-lg bg-red-600 border border-red-300/80 backdrop-blur-sm flex items-center justify-center text-white shadow-lg" style="box-shadow: 0 0 20px rgba(239,68,68,0.5); transform: rotate(45deg);">
-            <span style="transform: rotate(-45deg); font-size: 13px;">⚠️</span>
-          </div>
+        <div class="map-marker critical" style="background: rgba(255, 77, 0, 0.25); border-color: #ff4d00;" title="${inc.title}">
+          <span class="material-symbols-outlined text-[15px] text-status-critical">car_crash</span>
         </div>
       `;
     });
 
-    // 3. Police Officer Markers
-    data.officers.forEach((off) => {
-      const markerKey = `off_${off.id}`;
+    // 3. Police Officers
+    data.officers.forEach((officer) => {
+      const markerKey = `off_${officer.id}`;
       let marker = markersRef.current[markerKey];
 
       if (!activeLayers.police) {
@@ -423,26 +565,21 @@ export const MapViewer: React.FC<MapViewerProps> = ({
       let el = marker?.getElement();
       if (!el) {
         el = document.createElement("div");
-        el.className = "cursor-pointer hover:scale-115 transition-transform duration-200";
+        el.className = "cursor-pointer transition-transform duration-150 hover:scale-110";
         marker = new maplibregl.Marker({ element: el })
-          .setLngLat([off.lon, off.lat])
+          .setLngLat([officer.lon, officer.lat])
           .addTo(map.current!);
         markersRef.current[markerKey] = marker;
       }
 
-      const isAssigned = !off.isAvailable;
       el.innerHTML = `
-        <div class="w-7 h-7 rounded-lg ${
-          isAssigned ? "bg-sky-500/95 border-sky-300" : "bg-slate-800/90 border-slate-600"
-        } border backdrop-blur-sm flex items-center justify-center text-[12px] text-white shadow-md" style="${
-        isAssigned ? "box-shadow: 0 0 12px rgba(56,189,248,0.4)" : ""
-      }">
-          👮
+        <div class="map-marker police" title="${officer.name} (${officer.rank})">
+          <span class="material-symbols-outlined text-[14px] text-primary">local_police</span>
         </div>
       `;
     });
 
-    // 4. CCTV Camera Markers
+    // 4. CCTV Cameras
     if (data.cameras) {
       data.cameras.forEach((cam) => {
         const markerKey = `cam_${cam.cameraId}`;
@@ -459,7 +596,7 @@ export const MapViewer: React.FC<MapViewerProps> = ({
         let el = marker?.getElement();
         if (!el) {
           el = document.createElement("div");
-          el.className = "cursor-pointer hover:scale-115 transition-transform duration-200";
+          el.className = "cursor-pointer transition-transform duration-150 hover:scale-110";
           el.onclick = () => onSelectCamera?.(cam.cameraId);
           marker = new maplibregl.Marker({ element: el })
             .setLngLat([cam.lon, cam.lat])
@@ -470,40 +607,102 @@ export const MapViewer: React.FC<MapViewerProps> = ({
         }
 
         el.innerHTML = `
-          <div class="w-6 h-6 rounded-full bg-indigo-600/90 border border-indigo-300/60 backdrop-blur-sm flex items-center justify-center text-[10px] text-white shadow-md" style="box-shadow: 0 0 10px rgba(99,102,241,0.4)" title="${cam.name}">
-            📹
+          <div class="map-marker" style="border-color: rgba(0, 242, 255, 0.4); box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);" title="${cam.name}">
+            <span class="material-symbols-outlined text-[15px] text-primary">videocam</span>
           </div>
         `;
       });
     }
   }, [data, activeLayers, selectedJunctionId, onSelectJunction, onSelectCamera]);
 
+  const handleZoomIn = () => map.current?.zoomIn();
+  const handleZoomOut = () => map.current?.zoomOut();
+  const handleRecenter = () => {
+    map.current?.flyTo({
+      center: [79.0882, 21.1458],
+      zoom: 13.2,
+      pitch: 42,
+      bearing: -15,
+      essential: true,
+    });
+  };
+
   return (
     <div className="absolute inset-0">
       <div ref={mapContainer} className="w-full h-full" />
 
-      {/* Floating Basemap Selector Controls */}
-      <div className="absolute top-4 right-14 z-20 flex items-center gap-1 bg-surface/90 backdrop-blur-md p-1 rounded-xl border border-border-subtle shadow-float select-none">
-        {(Object.keys(BASEMAP_CONFIG) as BasemapMode[]).map((mode) => {
-          const cfg = BASEMAP_CONFIG[mode];
-          const Icon = cfg.icon;
-          const isActive = basemapMode === mode;
-          return (
-            <button
-              key={mode}
-              onClick={() => handleSwitchBasemap(mode)}
-              title={cfg.label}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-150 ${
-                isActive
-                  ? "bg-accent-blue text-slate-950 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
-              }`}
+      {/* Floating Map Controls — Stitch Top Right */}
+      <div className="absolute top-6 right-6 flex flex-col space-y-2 z-10 select-none">
+        {/* Basemap Pill Group */}
+        <div className="glass-panel rounded-full p-1 border border-grid-line flex items-center">
+          <button
+            onClick={() => handleSwitchBasemap("DARK")}
+            className={`px-4 py-1.5 rounded-full font-label-caps text-label-caps flex items-center justify-center min-w-[80px] transition-colors ${
+              basemapMode === "DARK"
+                ? "bg-primary text-on-primary"
+                : "text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            <span
+              className="material-symbols-outlined text-[16px] mr-1"
+              style={{ fontVariationSettings: basemapMode === "DARK" ? "'FILL' 1" : "'FILL' 0" }}
             >
-              <Icon className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{mode}</span>
+              dark_mode
+            </span>
+            DARK
+          </button>
+
+          <button
+            onClick={() => handleSwitchBasemap("STANDARD")}
+            className={`px-4 py-1.5 rounded-full font-label-caps text-label-caps flex items-center justify-center min-w-[80px] transition-colors ${
+              basemapMode === "STANDARD"
+                ? "bg-primary text-on-primary"
+                : "text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px] mr-1">light_mode</span>
+            STANDARD
+          </button>
+
+          <button
+            onClick={() => handleSwitchBasemap("SATELLITE")}
+            className={`px-4 py-1.5 rounded-full font-label-caps text-label-caps flex items-center justify-center min-w-[80px] transition-colors ${
+              basemapMode === "SATELLITE"
+                ? "bg-primary text-on-primary"
+                : "text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px] mr-1">satellite_alt</span>
+            SATELLITE
+          </button>
+        </div>
+
+        {/* Zoom & Recenter Controls */}
+        <div className="flex justify-end mt-3">
+          <div className="glass-panel rounded border border-grid-line flex flex-col overflow-hidden">
+            <button
+              onClick={handleZoomIn}
+              title="Zoom In"
+              className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant hover:text-on-surface border-b border-grid-line transition-colors"
+            >
+              <span className="material-symbols-outlined">add</span>
             </button>
-          );
-        })}
+            <button
+              onClick={handleZoomOut}
+              title="Zoom Out"
+              className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant hover:text-on-surface border-b border-grid-line transition-colors"
+            >
+              <span className="material-symbols-outlined">remove</span>
+            </button>
+            <button
+              onClick={handleRecenter}
+              title="Recenter Nagpur ITMS"
+              className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors"
+            >
+              <span className="material-symbols-outlined">my_location</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

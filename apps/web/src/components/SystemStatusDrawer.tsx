@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { X, Server, Radio, Database, Cpu, Activity, ShieldCheck, CheckCircle2, AlertCircle } from "lucide-react";
 import { NetworkSummary } from "@/types";
-import { API_BASE_URL, WS_BASE_URL } from "@/utils/api";
+import { API_BASE_URL } from "@/utils/api";
 
 interface SystemStatusDrawerProps {
   isOpen: boolean;
@@ -46,163 +45,150 @@ export const SystemStatusDrawer: React.FC<SystemStatusDrawerProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4 select-none animate-fade-in">
-      <div className="w-full max-w-xl glass-raised rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-scale-in">
+      <div className="w-full max-w-xl bg-surface-elevated rounded-xl border border-grid-line flex flex-col overflow-hidden shadow-2xl animate-scale-in">
         {/* Header */}
-        <div className="p-4 border-b border-border-subtle flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-accent-blue/15 text-accent-blue border border-accent-blue/20">
-              <Server className="w-4 h-4" />
+        <div className="p-5 border-b border-grid-line bg-surface-container-low flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded bg-primary/10 text-primary border border-primary/30 flex items-center justify-center">
+              <span className="material-symbols-outlined text-[20px]">dns</span>
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                System Infrastructure &amp; Providers
-                <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
+              <h3 className="font-headline-md text-headline-md font-bold text-on-surface flex items-center gap-2">
+                System Infrastructure &amp; Health
+                <span className="font-data-mono text-data-mono px-2 py-0.5 rounded-full bg-status-success/15 text-status-success border border-status-success/30">
                   {health?.status || "HEALTHY"}
                 </span>
               </h3>
-              <p className="text-[10px] text-slate-500">
-                End-to-end provenance, telemetry source freshness &amp; failover health
+              <p className="font-body-sm text-body-sm text-on-surface-variant">
+                End-to-end provenance, telemetry freshness &amp; failover health
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-surface hover:bg-surface-raised text-slate-500 hover:text-white transition-colors"
+            className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-colors"
           >
-            <X className="w-4 h-4" />
+            <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
         {/* Provider Cards */}
-        <div className="p-5 space-y-3.5 overflow-y-auto max-h-[75vh]">
+        <div className="p-6 space-y-4 overflow-y-auto max-h-[75vh]">
           {/* TomTom Provider */}
-          <div className="p-3.5 rounded-xl bg-surface border border-border-subtle flex items-center justify-between">
+          <div className="p-4 rounded-lg bg-surface border border-grid-line flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${isLiveTomTom ? "bg-emerald-500/15 text-emerald-400" : "bg-amber-500/15 text-amber-400"}`}>
-                <Radio className="w-4 h-4" />
+              <div
+                className={`w-9 h-9 rounded flex items-center justify-center ${
+                  isLiveTomTom
+                    ? "bg-status-success/15 text-status-success"
+                    : "bg-status-warning/15 text-status-warning"
+                }`}
+              >
+                <span className="material-symbols-outlined text-[20px]">cell_tower</span>
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-xs">TomTom Traffic Telemetry</span>
-                  <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider ${isLiveTomTom ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"}`}>
+                  <span className="font-bold text-on-surface font-body-sm text-body-sm">
+                    TomTom Traffic Telemetry
+                  </span>
+                  <span
+                    className={`px-1.5 py-0.5 rounded font-label-caps text-[9px] font-bold uppercase tracking-wider ${
+                      isLiveTomTom
+                        ? "bg-status-success/20 text-status-success"
+                        : "bg-status-warning/20 text-status-warning"
+                    }`}
+                  >
                     {isLiveTomTom ? "LIVE STREAM" : "SIMULATED / BACKUP"}
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-0.5">
-                  Flow speed + incidents for Nagpur bounding box ({providers?.tomtom?.nagpurBoundingBox || "78.98 - 79.20"})
+                <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+                  Flow speed + incidents for Nagpur bounding box
                 </p>
               </div>
             </div>
-            <div className="text-right font-mono text-[10px]">
-              <div className="text-emerald-400 font-bold">CONNECTED</div>
-              <div className="text-slate-500">Latency: 42ms</div>
+            <div className="text-right font-data-mono text-data-mono">
+              <div className="text-status-success font-bold">CONNECTED</div>
+              <div className="text-on-surface-variant">42ms latency</div>
             </div>
           </div>
 
           {/* OSRM Routing Engine */}
-          <div className="p-3.5 rounded-xl bg-surface border border-border-subtle flex items-center justify-between">
+          <div className="p-4 rounded-lg bg-surface border border-grid-line flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-sky-500/15 text-sky-400">
-                <Activity className="w-4 h-4" />
+              <div className="w-9 h-9 rounded bg-primary/15 text-primary flex items-center justify-center">
+                <span className="material-symbols-outlined text-[20px]">alt_route</span>
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-xs">OSRM Engine (OpenStreetMap)</span>
-                  <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-sky-500/20 text-sky-300">
-                    LIVE
+                  <span className="font-bold text-on-surface font-body-sm text-body-sm">
+                    OSRM Nagpur Routing Engine
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-primary/20 text-primary font-label-caps text-[9px] font-bold uppercase tracking-wider">
+                    NOMINAL
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-0.5">
-                  Multi-candidate route generation with GeoJSON geometries &amp; road step metadata
+                <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+                  Topological graph calculation &amp; shortest path search
                 </p>
               </div>
             </div>
-            <div className="text-right font-mono text-[10px]">
-              <div className="text-emerald-400 font-bold">ACTIVE</div>
-              <div className="text-slate-500">router.project-osrm.org</div>
+            <div className="text-right font-data-mono text-data-mono">
+              <div className="text-status-success font-bold">OPTIMAL</div>
+              <div className="text-on-surface-variant">18ms compute</div>
             </div>
           </div>
 
-          {/* Edge Computer Vision Engine */}
-          <div className="p-3.5 rounded-xl bg-surface border border-border-subtle flex items-center justify-between">
+          {/* OR-Tools Police Optimization */}
+          <div className="p-4 rounded-lg bg-surface border border-grid-line flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-purple-500/15 text-purple-400">
-                <Cpu className="w-4 h-4" />
+              <div className="w-9 h-9 rounded bg-secondary/15 text-secondary flex items-center justify-center">
+                <span className="material-symbols-outlined text-[20px]">local_police</span>
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-xs">Edge Vision Pipeline</span>
-                  <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-purple-500/20 text-purple-300">
-                    ZERO PII
+                  <span className="font-bold text-on-surface font-body-sm text-body-sm">
+                    OR-Tools Resource Optimizer
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-secondary/20 text-secondary font-label-caps text-[9px] font-bold uppercase tracking-wider">
+                    DETERMINISTIC
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-0.5">
-                  Multi-modal counting (cars, bikes, autos, buses, trucks), occupancy &amp; queue estimation
+                <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+                  Constraint satisfaction &amp; officer dispatch allocation
                 </p>
               </div>
             </div>
-            <div className="text-right font-mono text-[10px]">
-              <div className="text-emerald-400 font-bold">PROCESSING</div>
-              <div className="text-slate-500">6 Cameras Fused</div>
+            <div className="text-right font-data-mono text-data-mono">
+              <div className="text-status-success font-bold">READY</div>
+              <div className="text-on-surface-variant">Pure Algorithmic</div>
             </div>
           </div>
 
-          {/* Redis & PostgreSQL / PostGIS */}
-          <div className="p-3.5 rounded-xl bg-surface border border-border-subtle flex items-center justify-between">
+          {/* CCTV Edge Vision Feed */}
+          <div className="p-4 rounded-lg bg-surface border border-grid-line flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-indigo-500/15 text-indigo-400">
-                <Database className="w-4 h-4" />
+              <div className="w-9 h-9 rounded bg-status-warning/15 text-status-warning flex items-center justify-center">
+                <span className="material-symbols-outlined text-[20px]">videocam</span>
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-xs">State Cache &amp; Spatial Database</span>
-                  <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300">
-                    HYBRID
+                  <span className="font-bold text-on-surface font-body-sm text-body-sm">
+                    Edge Optical CCTV Streams
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded bg-status-success/20 text-status-success font-label-caps text-[9px] font-bold uppercase tracking-wider">
+                    ZERO-PII
                   </span>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-0.5">
-                  Sub-millisecond memory cache with spatial network graph &amp; Supabase auth fallback
+                <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+                  4 active optical sensors • 28.5 avg FPS • RT-DETR model
                 </p>
               </div>
             </div>
-            <div className="text-right font-mono text-[10px]">
-              <div className="text-emerald-400 font-bold">SYNCHRONIZED</div>
-              <div className="text-slate-500">TTL 5.0s</div>
+            <div className="text-right font-data-mono text-data-mono">
+              <div className="text-status-success font-bold">4/4 STREAMS</div>
+              <div className="text-on-surface-variant">96% confidence</div>
             </div>
           </div>
-
-          {/* Realtime WebSocket Stream */}
-          <div className="p-3.5 rounded-xl bg-surface border border-border-subtle flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-500/15 text-emerald-400">
-                <CheckCircle2 className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-white text-xs">Realtime WebSocket Channel</span>
-                  <span className="px-1.5 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider bg-emerald-500/20 text-emerald-300">
-                    ACTIVE
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-500 mt-0.5">
-                  {WS_BASE_URL} • Heartbeat synced
-                </p>
-              </div>
-            </div>
-            <div className="text-right font-mono text-[10px]">
-              <div className="text-emerald-400 font-bold">CONNECTED</div>
-              <div className="text-slate-500">{health?.activeConnections || 1} client(s)</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="p-3.5 border-t border-border-subtle bg-surface/50 text-[10px] text-slate-400 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Deterministic state updates every 5.0 seconds</span>
-          </div>
-          <span className="font-mono text-slate-500">Uptime: {Math.round(data?.uptimeSeconds || 0)}s</span>
         </div>
       </div>
     </div>

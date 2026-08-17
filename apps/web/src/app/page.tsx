@@ -13,7 +13,7 @@ import { RoutesPanel } from "@/components/RoutesPanel";
 import { SystemStatusDrawer } from "@/components/SystemStatusDrawer";
 import { IncidentCenterDrawer } from "@/components/IncidentCenterDrawer";
 import { CctvDrawer } from "@/components/CctvDrawer";
-import { NetworkSummary, RouteCandidate, Incident } from "@/types";
+import { NetworkSummary, RouteCandidate, Incident, LocationPlace } from "@/types";
 import { API_BASE_URL, WS_BASE_URL } from "@/utils/api";
 import { getNagpurFallbackSummary, getNagpurDisruptedSummary } from "@/utils/fallbackData";
 
@@ -22,7 +22,12 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<NavTab>("overview");
   const [selectedJunctionId, setSelectedJunctionId] = useState<string | null>("j_sitabuldi");
   const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
+
+  // Multi-Route State
   const [activeRoute, setActiveRoute] = useState<RouteCandidate | null>(null);
+  const [allRoutes, setAllRoutes] = useState<RouteCandidate[]>([]);
+  const [originPlace, setOriginPlace] = useState<LocationPlace | null>(null);
+  const [destPlace, setDestPlace] = useState<LocationPlace | null>(null);
 
   // Modals & Drawers
   const [isCopilotOpen, setIsCopilotOpen] = useState(false);
@@ -32,6 +37,7 @@ export default function DashboardPage() {
   const [isIncidentsOpen, setIsIncidentsOpen] = useState(false);
   const [isCctvOpen, setIsCctvOpen] = useState(false);
   const [simulationTargetJunction, setSimulationTargetJunction] = useState<string | null>(null);
+  const [isLiveWsConnected, setIsLiveWsConnected] = useState(false);
 
   // Layer toggles
   const [activeLayers, setActiveLayers] = useState({
@@ -57,7 +63,7 @@ export default function DashboardPage() {
           setData(json);
         }
       } catch (err) {
-        console.warn("Backend not reached yet, running on deterministic local baseline state...", err);
+        console.warn("Backend deferred, running on deterministic local baseline state...", err);
       }
     };
 
@@ -70,6 +76,7 @@ export default function DashboardPage() {
         ws = new WebSocket(WS_BASE_URL);
         ws.onopen = () => {
           console.log("WebSocket connected to NAVI-FLOW backend.");
+          if (isMounted) setIsLiveWsConnected(true);
         };
         ws.onmessage = (event) => {
           try {
@@ -82,6 +89,7 @@ export default function DashboardPage() {
           }
         };
         ws.onclose = () => {
+          if (isMounted) setIsLiveWsConnected(false);
           setTimeout(connectWs, 4000);
         };
         wsRef.current = ws;
@@ -107,7 +115,7 @@ export default function DashboardPage() {
     setActiveTab(tab);
 
     if (tab === "overview") {
-      // Nominal view
+      // Nominal map overview
     } else if (tab === "traffic") {
       setActiveLayers((prev) => ({ ...prev, traffic: true }));
     } else if (tab === "risk") {
@@ -123,7 +131,7 @@ export default function DashboardPage() {
       const recJunc = data?.recommendations[0]?.targetJunctionId || "j_sitabuldi";
       setSelectedJunctionId(recJunc);
     } else if (tab === "cctv") {
-      setActiveLayers((prev) => ({ ...prev, cameras: true }));
+      setActiveLayers((prev) => ({ ...prev, cctv: true }));
       setIsCctvOpen(true);
     } else if (tab === "simulation") {
       setSimulationTargetJunction(selectedJunctionId || "j_sitabuldi");
@@ -150,7 +158,6 @@ export default function DashboardPage() {
       console.warn("Backend offline, updating local state for dispatch acceptance", e);
     }
 
-    // Local deterministic state update fallback
     setData((prev) => {
       const updated = { ...prev };
       const rec = updated.recommendations.find((r) => r.recommendationId === recId);
@@ -165,27 +172,20 @@ export default function DashboardPage() {
           junctionName: rec.targetJunctionName,
           status: "ACCEPTED",
           assignedAt: new Date().toISOString(),
-          etaMinutes: rec.estimatedArrivalMinutes || 3.4,
+          etaMinutes: rec.estimatedArrivalMinutes,
           riskReductionExpected: rec.expectedRiskReduction,
-          operatorNotes: "Accepted via Human-in-the-loop operator console.",
+          operatorNotes: "Accepted via Command Center",
         });
-        if (updated.junctionRisks[rec.targetJunctionId]) {
-          updated.junctionRisks[rec.targetJunctionId].policeAssigned = true;
-          updated.junctionRisks[rec.targetJunctionId].riskScore = Math.max(
-            30,
-            updated.junctionRisks[rec.targetJunctionId].riskScore - rec.expectedRiskReduction
-          );
-        }
-        const off = updated.officers.find((o) => o.id === rec.officerId);
-        if (off) off.isAvailable = false;
-        updated.metrics.activeDeploymentsCount = updated.deployments.length;
-        updated.metrics.availableOfficersCount = updated.officers.filter((o) => o.isAvailable).length;
       }
       return updated;
     });
   };
 
-  const handleOverrideRecommendation = async (recId: string, altOfficerId: string, reason: string) => {
+  const handleOverrideRecommendation = async (
+    recId: string,
+    altOfficerId: string,
+    reason: string
+  ) => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/police/deployments/override`, {
         method: "POST",
@@ -208,27 +208,23 @@ export default function DashboardPage() {
     setData((prev) => {
       const updated = { ...prev };
       const rec = updated.recommendations.find((r) => r.recommendationId === recId);
-      const altOfficer = updated.officers.find((o) => o.id === altOfficerId);
-      if (rec && altOfficer) {
+      const officer = updated.officers.find((o) => o.id === altOfficerId);
+      if (rec && officer) {
         updated.recommendations = updated.recommendations.filter((r) => r.recommendationId !== recId);
         updated.deployments.push({
           deploymentId: `dep_ovr_${Date.now()}`,
           recommendationId: recId,
-          officerId: altOfficer.id,
-          officerName: altOfficer.name,
+          officerId: altOfficerId,
+          officerName: officer.name,
           junctionId: rec.targetJunctionId,
           junctionName: rec.targetJunctionName,
           status: "OVERRIDDEN",
           assignedAt: new Date().toISOString(),
-          etaMinutes: 4.2,
-          riskReductionExpected: rec.expectedRiskReduction * 0.9,
-          operatorNotes: `Human operator override: Reassigned to ${altOfficer.name}. Reason: ${reason}`,
+          etaMinutes: 6.5,
+          riskReductionExpected: rec.expectedRiskReduction * 0.85,
+          operatorNotes: "Manually overridden by operator",
           overrideReason: reason,
         });
-        altOfficer.isAvailable = false;
-        if (updated.junctionRisks[rec.targetJunctionId]) {
-          updated.junctionRisks[rec.targetJunctionId].policeAssigned = true;
-        }
       }
       return updated;
     });
@@ -239,7 +235,7 @@ export default function DashboardPage() {
       const res = await fetch(`${API_BASE_URL}/api/police/deployments/reject`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recommendationId: recId }),
+        body: JSON.stringify({ recommendationId: recId, reason: "Operator decision" }),
       });
       if (res.ok) {
         const summaryRes = await fetch(`${API_BASE_URL}/api/network/summary`);
@@ -272,7 +268,6 @@ export default function DashboardPage() {
       console.warn("Using deterministic client fallback for Sitabuldi accident scenario", e);
     }
 
-    // Client fallback applies the disrupted scenario directly
     setData(getNagpurDisruptedSummary());
   };
 
@@ -285,6 +280,7 @@ export default function DashboardPage() {
         const result = await res.json();
         setData(result.summary);
         setActiveRoute(null);
+        setAllRoutes([]);
         return;
       }
     } catch (e) {
@@ -293,6 +289,7 @@ export default function DashboardPage() {
 
     setData(getNagpurFallbackSummary());
     setActiveRoute(null);
+    setAllRoutes([]);
   };
 
   const handleSelectIncident = (inc: Incident) => {
@@ -309,8 +306,8 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#070a0f] text-slate-100 font-sans">
-      {/* ─── Top Command Strip ─── */}
+    <div className="bg-background text-on-surface h-screen w-screen overflow-hidden flex flex-col font-body-lg">
+      {/* ─── Top App Bar ─── */}
       <CommandHeader
         data={data}
         onTriggerDemo={handleTriggerDemo}
@@ -327,17 +324,18 @@ export default function DashboardPage() {
         onToggleLayer={handleToggleLayer}
       />
 
-      {/* ─── Main Stage ─── */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Icon Bar */}
+      {/* ─── Main Workspace Canvas ─── */}
+      <div className="flex flex-1 h-[calc(100vh-64px)] overflow-hidden relative">
+        {/* Left Side Navigation */}
         <IconBar
           activeTab={activeTab}
           onSelectTab={handleSelectTab}
           data={data}
+          onOpenSystemStatus={() => setIsSystemStatusOpen(true)}
         />
 
         {/* Center — Full-Bleed Map Canvas */}
-        <div className="flex-1 relative h-full">
+        <main className="flex-1 relative h-full bg-surface-container-lowest flex">
           <MapViewer
             data={data}
             selectedJunctionId={selectedJunctionId}
@@ -347,24 +345,44 @@ export default function DashboardPage() {
               setIsCctvOpen(true);
             }}
             activeRoute={activeRoute}
+            allRoutes={allRoutes}
+            originPlace={originPlace}
+            destPlace={destPlace}
+            onSelectRoute={(r) => setActiveRoute(r)}
             activeLayers={activeLayers}
           />
 
           {/* Floating Route Intelligence Panel */}
           {activeTab === "routes" && (
-            <div className="absolute top-4 left-4 w-[380px] glass-raised rounded-2xl shadow-panel z-30 max-h-[82vh] overflow-y-auto animate-slide-in-left">
+            <div className="absolute top-4 left-4 w-[420px] glass-raised rounded-xl shadow-2xl z-30 max-h-[82vh] overflow-y-auto animate-slide-in-left border border-grid-line">
               <RoutesPanel
                 onSelectRoute={(route) => setActiveRoute(route)}
                 activeRoute={activeRoute}
+                allRoutes={allRoutes}
+                onUpdateAllRoutes={(routes) => setAllRoutes(routes)}
+                onUpdateEndpoints={(orig, dest) => {
+                  setOriginPlace(orig);
+                  setDestPlace(dest);
+                }}
+                onClearRoutes={() => {
+                  setAllRoutes([]);
+                  setActiveRoute(null);
+                  setOriginPlace(null);
+                  setDestPlace(null);
+                }}
               />
             </div>
           )}
 
-          {/* Floating Bottom Metrics Bar */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 animate-slide-in-up">
-            <BottomMetrics metrics={data?.metrics} />
+          {/* Bottom Telemetry Bar */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 animate-slide-in-up">
+            <BottomMetrics
+              metrics={data?.metrics}
+              onSelectMetric={(tabKey) => handleSelectTab(tabKey as NavTab)}
+              isLiveConnected={isLiveWsConnected}
+            />
           </div>
-        </div>
+        </main>
 
         {/* Right — Context Intelligence Drawer */}
         <ContextPanel
@@ -405,9 +423,9 @@ export default function DashboardPage() {
       <CctvDrawer
         isOpen={isCctvOpen}
         onClose={() => setIsCctvOpen(false)}
-        data={data}
+        cameras={data?.cameras || []}
         selectedCameraId={selectedCameraId}
-        onFocusCamera={(camId) => setSelectedCameraId(camId)}
+        onSelectCamera={(camId) => setSelectedCameraId(camId)}
       />
     </div>
   );
