@@ -222,42 +222,48 @@ export const RoutesPanel: React.FC<RoutesPanelProps> = ({ onSelectRoute, activeR
   const comp = activeRoute?.vehicleComposition;
 
   return (
-    <div className="p-4 space-y-4 text-xs select-none">
+    <div className="p-5 space-y-4 text-xs select-none bg-surface-elevated text-on-surface">
       {/* Header */}
-      <div>
+      <div className="border-b border-grid-line pb-3">
         <div className="flex items-center gap-2 mb-1">
-          <Navigation className="w-4 h-4 text-accent-blue" />
-          <h3 className="font-bold text-white text-sm">Route Intelligence</h3>
+          <span className="material-symbols-outlined text-[18px] text-primary">directions</span>
+          <h3 className="font-headline-md text-headline-md font-bold text-primary">
+            Route Intelligence
+          </h3>
         </div>
-        <p className="text-[10px] text-slate-500">
+        <p className="font-body-sm text-body-sm text-on-surface-variant">
           Multi-objective ranking with real-time telemetry &amp; CCTV fusion
         </p>
       </div>
 
       {/* Origin / Destination */}
-      <div className="bg-surface rounded-xl border border-border-subtle p-3 space-y-1.5">
+      <div className="bg-surface-container rounded-lg border border-grid-line p-3.5 space-y-2">
         <div className="flex items-center gap-2.5">
-          <div className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-          <span className="text-[11px] text-white font-medium truncate">{startPoint}</span>
+          <div className="w-2.5 h-2.5 rounded-full bg-status-success shrink-0" />
+          <span className="font-body-sm text-body-sm text-on-surface font-medium truncate">
+            {startPoint}
+          </span>
         </div>
-        <div className="w-px h-3 bg-slate-700 ml-[3px]" />
+        <div className="w-px h-3 bg-grid-line ml-[4px]" />
         <div className="flex items-center gap-2.5">
-          <div className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
-          <span className="text-[11px] text-white font-medium truncate">{endPoint}</span>
+          <div className="w-2.5 h-2.5 rounded-full bg-status-critical shrink-0" />
+          <span className="font-body-sm text-body-sm text-on-surface font-medium truncate">
+            {endPoint}
+          </span>
         </div>
 
         <button
           onClick={handleQueryRoutes}
           disabled={loading}
-          className="w-full mt-2 py-2 rounded-lg bg-accent-blue/15 hover:bg-accent-blue/25 text-accent-blue font-bold text-[11px] flex items-center justify-center gap-1.5 border border-accent-blue/20 transition-all duration-150 active:scale-[0.98]"
+          className="w-full mt-2 py-2.5 rounded bg-primary text-on-primary font-bold font-body-sm text-body-sm flex items-center justify-center gap-2 transition-all duration-150 active:scale-[0.98] disabled:opacity-50 hover:bg-primary-fixed"
         >
-          <Sliders className="w-3.5 h-3.5" />
+          <span className="material-symbols-outlined text-[18px]">tune</span>
           {loading ? "Computing Network Ranks..." : "Rank Route Candidates"}
         </button>
       </div>
 
       {/* Route Candidates List */}
-      <div className="space-y-2">
+      <div className="space-y-2.5">
         {routes.map((r) => {
           const isSelected = activeRoute?.routeId === r.routeId;
           const cfg = classificationConfig[r.classification] || classificationConfig.BACKUP;
@@ -266,49 +272,75 @@ export const RoutesPanel: React.FC<RoutesPanelProps> = ({ onSelectRoute, activeR
             <div
               key={r.routeId}
               onClick={() => onSelectRoute(r)}
-              className={`p-3 rounded-xl border-l-[3px] cursor-pointer transition-all duration-200 ${
-                cfg.accent
-              } ${
+              className={`p-3.5 rounded-lg border cursor-pointer transition-all duration-150 relative overflow-hidden ${
                 isSelected
-                  ? "bg-accent-blue/8 border border-l-[3px] border-accent-blue/30 shadow-glow-blue ring-1 ring-accent-blue/30"
-                  : "bg-surface border border-l-[3px] border-border-subtle hover:bg-surface-raised"
+                  ? "bg-surface-container-high border-primary shadow-lg shadow-cyan-500/10"
+                  : "bg-surface border-grid-line hover:bg-surface-container"
               }`}
             >
+              <div
+                className={`absolute left-0 top-0 bottom-0 w-1 ${
+                  r.classification === "RECOMMENDED"
+                    ? "bg-status-success"
+                    : r.classification === "FASTEST"
+                    ? "bg-primary-container"
+                    : r.classification === "LOW_RISK_ALTERNATIVE"
+                    ? "bg-secondary-fixed-dim"
+                    : "bg-outline"
+                }`}
+              />
+
               {/* Classification + Duration */}
-              <div className="flex items-center justify-between mb-1.5">
+              <div className="flex items-center justify-between mb-1.5 pl-1.5">
                 <span
-                  className={`px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider ${cfg.bg} ${cfg.color} border ${cfg.border}`}
+                  className={`px-2 py-0.5 rounded font-label-caps text-label-caps uppercase tracking-wider ${cfg.bg} ${cfg.color} border ${cfg.border}`}
                 >
                   {r.classification.replace(/_/g, " ")}
                 </span>
-                <span className="text-white font-mono font-bold text-sm">
+                <span className="text-on-surface font-data-mono text-data-mono font-bold text-base">
                   {Math.round(r.trafficDurationSeconds / 60)}
-                  <span className="text-[9px] text-slate-500 font-normal ml-0.5">min</span>
+                  <span className="text-xs text-on-surface-variant font-normal ml-0.5">min</span>
                 </span>
               </div>
 
               {/* Route Label */}
-              <div className="font-bold text-white text-[11px]">{r.label}</div>
-              <div className="text-[10px] text-slate-500 mt-0.5 truncate-2">{r.summary}</div>
+              <div className="font-bold text-on-surface text-sm pl-1.5">{r.label}</div>
+              <div className="font-body-sm text-body-sm text-on-surface-variant mt-0.5 pl-1.5 truncate">
+                {r.summary}
+              </div>
 
               {/* Stats Grid */}
-              <div className="mt-2 pt-2 border-t border-border-subtle grid grid-cols-3 gap-2 text-[9px] font-mono">
+              <div className="mt-2.5 pt-2 border-t border-grid-line grid grid-cols-3 gap-2 font-data-mono text-data-mono pl-1.5">
                 <div>
-                  <span className="text-slate-500">Dist</span>
-                  <div className="text-slate-200 font-bold">{(r.distanceMeters / 1000).toFixed(1)}km</div>
+                  <span className="text-on-surface-variant">Dist</span>
+                  <div className="text-on-surface font-bold">
+                    {(r.distanceMeters / 1000).toFixed(1)}km
+                  </div>
                 </div>
                 <div>
-                  <span className="text-slate-500">Cong</span>
-                  <div className="text-amber-400 font-bold">{Math.round(r.averageCongestion)}%</div>
+                  <span className="text-on-surface-variant">Cong</span>
+                  <div className="text-status-warning font-bold">
+                    {Math.round(r.averageCongestion)}%
+                  </div>
                 </div>
                 <div>
-                  <span className="text-slate-500">Risk</span>
-                  <div className="text-red-400 font-bold">{Math.round(r.maxRiskScore)}/100</div>
+                  <span className="text-on-surface-variant">Risk</span>
+                  <div
+                    className={`font-bold ${
+                      r.maxRiskScore > 70
+                        ? "text-status-critical"
+                        : r.maxRiskScore > 40
+                        ? "text-status-warning"
+                        : "text-status-success"
+                    }`}
+                  >
+                    {Math.round(r.maxRiskScore)}/100
+                  </div>
                 </div>
               </div>
 
               {/* Recommendation Reason */}
-              <div className="mt-2 text-[10px] text-accent-blue/90 leading-tight">
+              <div className="mt-2 text-xs text-primary/90 leading-tight pl-1.5">
                 {r.recommendationReason}
               </div>
             </div>
@@ -316,79 +348,109 @@ export const RoutesPanel: React.FC<RoutesPanelProps> = ({ onSelectRoute, activeR
         })}
       </div>
 
-      {/* Route Traffic & Vehicle Composition (Requirement #21) */}
+      {/* Route Traffic & Vehicle Composition */}
       {comp && comp.percentages && (
-        <div className="p-3.5 rounded-xl bg-surface border border-border-subtle space-y-2.5 animate-slide-in-up">
-          <div className="flex items-center justify-between text-[10px] font-bold text-slate-300 uppercase tracking-wider">
-            <span className="flex items-center gap-1.5 text-accent-blue">
-              <Eye className="w-3.5 h-3.5" /> Route Vehicle Composition
+        <div className="p-4 rounded-lg bg-surface-container border border-grid-line space-y-3 animate-slide-in-up">
+          <div className="flex items-center justify-between font-label-caps text-label-caps uppercase tracking-wider">
+            <span className="flex items-center gap-1.5 text-primary">
+              <span className="material-symbols-outlined text-[16px]">videocam</span> Route Vehicle
+              Composition
             </span>
-            <span className="font-mono text-[9px] text-slate-500">
+            <span className="font-data-mono text-data-mono text-on-surface-variant">
               {comp.cameraCount} CCTV Cam(s) Fused
             </span>
           </div>
 
           {/* Vehicle Class Distribution Progress Bars */}
-          <div className="grid grid-cols-2 gap-2 text-[10px]">
+          <div className="grid grid-cols-2 gap-3 text-xs">
             <div className="space-y-1">
-              <div className="flex justify-between text-slate-400">
-                <span className="flex items-center gap-1"><Bike className="w-3 h-3 text-sky-400" /> Two-Wheelers</span>
-                <span className="font-mono font-bold text-white">{comp.percentages.motorcycles}%</span>
-              </div>
-              <div className="w-full h-1 bg-surface-overlay rounded-full overflow-hidden">
-                <div className="h-full bg-sky-400 rounded-full" style={{ width: `${comp.percentages.motorcycles}%` }} />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-slate-400">
-                <span className="flex items-center gap-1"><Car className="w-3 h-3 text-emerald-400" /> Cars</span>
-                <span className="font-mono font-bold text-white">{comp.percentages.cars}%</span>
-              </div>
-              <div className="w-full h-1 bg-surface-overlay rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${comp.percentages.cars}%` }} />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-slate-400">
-                <span className="flex items-center gap-1"><Bus className="w-3 h-3 text-amber-400" /> Buses</span>
-                <span className="font-mono font-bold text-white">{comp.percentages.buses}%</span>
-              </div>
-              <div className="w-full h-1 bg-surface-overlay rounded-full overflow-hidden">
-                <div className="h-full bg-amber-400 rounded-full" style={{ width: `${comp.percentages.buses}%` }} />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <div className="flex justify-between text-slate-400">
-                <span className="flex items-center gap-1"><Truck className="w-3 h-3 text-rose-400" /> Trucks/Autos</span>
-                <span className="font-mono font-bold text-white">
-                  {(comp.percentages.trucks + (comp.percentages.auto_rickshaws || 0)).toFixed(1)}%
+              <div className="flex justify-between text-on-surface-variant">
+                <span className="flex items-center gap-1">Two-Wheelers</span>
+                <span className="font-data-mono text-data-mono font-bold text-on-surface">
+                  {comp.percentages.motorcycles}%
                 </span>
               </div>
-              <div className="w-full h-1 bg-surface-overlay rounded-full overflow-hidden">
+              <div className="w-full h-1 bg-surface-variant rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-rose-400 rounded-full"
-                  style={{ width: `${comp.percentages.trucks + (comp.percentages.auto_rickshaws || 0)}%` }}
+                  className="h-full bg-primary-container rounded-full"
+                  style={{ width: `${comp.percentages.motorcycles}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-on-surface-variant">
+                <span className="flex items-center gap-1">Cars</span>
+                <span className="font-data-mono text-data-mono font-bold text-on-surface">
+                  {comp.percentages.cars}%
+                </span>
+              </div>
+              <div className="w-full h-1 bg-surface-variant rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-status-success rounded-full"
+                  style={{ width: `${comp.percentages.cars}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-on-surface-variant">
+                <span className="flex items-center gap-1">Buses</span>
+                <span className="font-data-mono text-data-mono font-bold text-on-surface">
+                  {comp.percentages.buses}%
+                </span>
+              </div>
+              <div className="w-full h-1 bg-surface-variant rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-status-warning rounded-full"
+                  style={{ width: `${comp.percentages.buses}%` }}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <div className="flex justify-between text-on-surface-variant">
+                <span className="flex items-center gap-1">Trucks/Autos</span>
+                <span className="font-data-mono text-data-mono font-bold text-on-surface">
+                  {(
+                    comp.percentages.trucks + (comp.percentages.auto_rickshaws || 0)
+                  ).toFixed(1)}
+                  %
+                </span>
+              </div>
+              <div className="w-full h-1 bg-surface-variant rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-status-danger rounded-full"
+                  style={{
+                    width: `${
+                      comp.percentages.trucks + (comp.percentages.auto_rickshaws || 0)
+                    }%`,
+                  }}
                 />
               </div>
             </div>
           </div>
 
           {/* Micro Telemetry Readout */}
-          <div className="pt-2 border-t border-border-subtle grid grid-cols-3 gap-2 text-[9px] font-mono text-slate-400">
+          <div className="pt-2 border-t border-grid-line grid grid-cols-3 gap-2 font-data-mono text-data-mono text-on-surface-variant">
             <div>
               <span>Flow Rate</span>
-              <div className="text-slate-200 font-bold">{comp.flowVehiclesPerMin} <span className="text-[8px] text-slate-500">vpm</span></div>
+              <div className="text-on-surface font-bold">
+                {comp.flowVehiclesPerMin}{" "}
+                <span className="text-xs text-on-surface-variant">vpm</span>
+              </div>
             </div>
             <div>
               <span>Occupancy</span>
-              <div className="text-amber-400 font-bold">{comp.averageOccupancyPct}%</div>
+              <div className="text-status-warning font-bold">
+                {comp.averageOccupancyPct}%
+              </div>
             </div>
             <div>
               <span>Queue Est.</span>
-              <div className="text-rose-400 font-bold">{comp.queuePressureMeters}m</div>
+              <div className="text-status-critical font-bold">
+                {comp.queuePressureMeters}m
+              </div>
             </div>
           </div>
         </div>

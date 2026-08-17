@@ -1,18 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  Radio,
-  AlertTriangle,
-  RotateCcw,
-  Sparkles,
-  Activity,
-  Clock,
-  Server,
-  FileText,
-  AlertOctagon,
-} from "lucide-react";
-import AuthButton from "@/components/header-auth";
+import Link from "next/link";
 import { NetworkSummary } from "@/types";
 
 interface CommandHeaderProps {
@@ -35,7 +24,7 @@ interface CommandHeaderProps {
   onToggleLayer: (layer: keyof CommandHeaderProps["activeLayers"]) => void;
 }
 
-const layerItems: { key: keyof CommandHeaderProps["activeLayers"]; label: string }[] = [
+const navLayerItems: { key: keyof CommandHeaderProps["activeLayers"]; label: string }[] = [
   { key: "traffic", label: "Flow" },
   { key: "risk", label: "Risk" },
   { key: "incidents", label: "Incidents" },
@@ -61,7 +50,9 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
   useEffect(() => {
     const update = () => {
       const now = new Date();
-      setTimeStr(now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour12: false }) + " IST");
+      setTimeStr(
+        now.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour12: false }) + " IST"
+      );
     };
     update();
     const interval = setInterval(update, 1000);
@@ -72,135 +63,161 @@ export const CommandHeader: React.FC<CommandHeaderProps> = ({
   const activeIncidents = data?.incidents.length || 0;
 
   return (
-    <header className="h-header w-full glass border-b border-border-subtle flex items-center justify-between px-4 z-30 select-none shrink-0">
-      {/* ─── Left: Brand + Status ─── */}
-      <div className="flex items-center gap-3">
-        {/* Logo */}
-        <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-sky-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-sky-500/20 shrink-0">
-          <Radio className="w-4 h-4 text-white" />
+    <header className="bg-background border-b border-grid-line w-full h-topbar-height flex items-center justify-between px-panel-padding z-50 shrink-0 select-none">
+      {/* ─── Brand & Nav Group ─── */}
+      <div className="flex items-center space-x-6 xl:space-x-8 h-full">
+        {/* Brand */}
+        <div className="flex items-center space-x-3">
+          <div className="w-8 h-8 rounded bg-primary-container flex items-center justify-center shadow-lg shadow-cyan-500/20">
+            <span
+              className="material-symbols-outlined text-on-primary-container text-[20px]"
+              style={{ fontVariationSettings: "'FILL' 1" }}
+            >
+              radar
+            </span>
+          </div>
+          <h1 className="font-headline-lg text-headline-lg font-bold text-primary tracking-tighter uppercase">
+            NAVI-FLOW
+          </h1>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          <span className="font-black text-sm tracking-wider text-white">NAVI-FLOW</span>
-
-          {/* Live / Simulated Pill */}
-          <span
-            className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold tracking-wide border ${
+        {/* Live Telemetry Pill + Nav Tabs */}
+        <div className="hidden md:flex items-center space-x-1.5 bg-surface-container-low rounded-full p-1 border border-grid-line">
+          <div
+            className={`flex items-center px-3 py-1.5 rounded-full border transition-colors ${
               isDemoMode
-                ? "bg-red-500/10 text-red-400 border-red-500/25"
-                : "bg-emerald-500/10 text-emerald-400 border-emerald-500/25"
+                ? "bg-status-critical/10 border-status-critical/30"
+                : "bg-primary/10 border-primary/30"
             }`}
           >
-            <span
-              className={`w-1.5 h-1.5 rounded-full ${
-                isDemoMode ? "bg-red-500 animate-pulse" : "bg-emerald-500 animate-pulse"
+            <div
+              className={`w-2 h-2 rounded-full mr-2 ${
+                isDemoMode ? "bg-status-critical animate-pulse" : "bg-status-success animate-pulse"
               }`}
             />
-            {isDemoMode ? "INCIDENT ACTIVE" : "LIVE TELEMETRY"}
-          </span>
+            <span
+              className={`font-label-caps text-label-caps uppercase ${
+                isDemoMode ? "text-status-critical" : "text-primary"
+              }`}
+            >
+              {isDemoMode ? "INCIDENT SIMULATION" : "LIVE TELEMETRY"}
+            </span>
+          </div>
+
+          <nav className="flex items-center px-1 space-x-1">
+            {navLayerItems.map((item) => {
+              const isActive = activeLayers[item.key];
+              return (
+                <button
+                  key={item.key}
+                  onClick={() => onToggleLayer(item.key)}
+                  className={`px-3 py-1.5 rounded-full font-body-sm text-body-sm transition-colors ${
+                    isActive
+                      ? "text-primary font-bold bg-surface-variant/80 border-b-2 border-primary"
+                      : "text-on-surface-variant hover:text-primary hover:bg-surface-variant"
+                  }`}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
         </div>
       </div>
 
-      {/* ─── Center: Layer Toggles ─── */}
-      <div className="hidden lg:flex items-center gap-0.5 bg-surface/80 p-0.5 rounded-lg border border-border-subtle">
-        {layerItems.map((l) => {
-          const isOn = activeLayers[l.key];
-          return (
-            <button
-              key={l.key}
-              onClick={() => onToggleLayer(l.key)}
-              title={`Toggle ${l.label} layer`}
-              className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all duration-150 ${
-                isOn
-                  ? "bg-accent-blue/15 text-accent-blue"
-                  : "text-slate-500 hover:text-slate-300"
-              }`}
-            >
-              {l.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* ─── Right: Actions ─── */}
-      <div className="flex items-center gap-2">
-        <AuthButton />
-
-        {/* System Status */}
-        <button
-          onClick={onOpenSystemStatus}
-          title="System Health & Data Sources"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-surface-raised text-slate-300 border border-border-subtle text-[11px] font-semibold transition-all duration-150"
+      {/* ─── Global Actions ─── */}
+      <div className="flex items-center space-x-3 xl:space-x-4 h-full">
+        <Link
+          href="/sign-in"
+          className="px-3 xl:px-4 py-2 font-body-sm text-body-sm text-on-surface-variant hover:text-primary transition-colors border-r border-grid-line pr-4 xl:pr-6"
         >
-          <Server className="w-3.5 h-3.5 text-emerald-400" />
-          <span className="hidden xl:inline">Status</span>
-        </button>
+          Sign In
+        </Link>
 
-        {/* Incidents Quick Button */}
-        {activeIncidents > 0 && (
+        <div className="flex items-center space-x-2">
+          {/* Status */}
           <button
-            onClick={onOpenIncidents}
-            title="View Active Incidents"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/15 text-red-400 border border-red-500/25 text-[11px] font-bold transition-all duration-150"
+            onClick={onOpenSystemStatus}
+            className="flex items-center px-2.5 xl:px-3 py-2 rounded font-body-sm text-body-sm text-on-surface border border-grid-line hover:bg-surface-variant transition-colors"
           >
-            <AlertOctagon className="w-3.5 h-3.5" />
-            <span>{activeIncidents}</span>
+            <span className="material-symbols-outlined text-[18px] mr-1.5 text-status-success">
+              dns
+            </span>
+            <span className="hidden sm:inline">Status</span>
           </button>
-        )}
 
-        {/* Copilot */}
-        <button
-          onClick={onOpenCopilot}
-          title="AI Operations Copilot"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-500/15 hover:bg-indigo-500/25 text-indigo-300 border border-indigo-500/20 text-[11px] font-semibold transition-all duration-150"
-        >
-          <Sparkles className="w-3.5 h-3.5" />
-          <span className="hidden xl:inline">Copilot</span>
-        </button>
+          {/* Incidents Indicator if active */}
+          {activeIncidents > 0 && (
+            <button
+              onClick={onOpenIncidents}
+              className="flex items-center px-2.5 py-2 rounded font-body-sm text-body-sm bg-status-critical/15 text-status-critical border border-status-critical/30 hover:bg-status-critical/25 transition-colors"
+            >
+              <span className="material-symbols-outlined text-[18px] mr-1">emergency</span>
+              <span>{activeIncidents}</span>
+            </button>
+          )}
 
-        {/* Simulator */}
-        <button
-          onClick={onOpenSimulation}
-          title="What-If Disruption Simulator"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-surface-raised text-slate-300 border border-border-subtle text-[11px] font-semibold transition-all duration-150"
-        >
-          <Activity className="w-3.5 h-3.5 text-accent-blue" />
-          <span className="hidden xl:inline">Simulate</span>
-        </button>
+          {/* Copilot */}
+          <button
+            onClick={onOpenCopilot}
+            className="flex items-center px-2.5 xl:px-3 py-2 rounded font-body-sm text-body-sm text-secondary border border-grid-line hover:bg-surface-variant transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px] mr-1.5 text-secondary">
+              auto_awesome
+            </span>
+            <span className="hidden sm:inline">Copilot</span>
+          </button>
 
-        {/* Audit */}
-        <button
-          onClick={onOpenAudit}
-          title="Immutable Audit Ledger"
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface hover:bg-surface-raised text-slate-300 border border-border-subtle text-[11px] font-semibold transition-all duration-150"
-        >
-          <FileText className="w-3.5 h-3.5 text-slate-400" />
-          <span className="hidden xl:inline">Audit</span>
-        </button>
+          {/* Simulate */}
+          <button
+            onClick={onOpenSimulation}
+            className="flex items-center px-2.5 xl:px-3 py-2 rounded font-body-sm text-body-sm text-on-surface border border-grid-line hover:bg-surface-variant transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px] mr-1.5 text-primary">
+              analytics
+            </span>
+            <span className="hidden sm:inline">Simulate</span>
+          </button>
 
-        {/* Demo Trigger */}
+          {/* Audit */}
+          <button
+            onClick={onOpenAudit}
+            className="flex items-center px-2.5 xl:px-3 py-2 rounded font-body-sm text-body-sm text-on-surface border border-grid-line hover:bg-surface-variant transition-colors"
+          >
+            <span className="material-symbols-outlined text-[18px] mr-1.5 text-on-surface-variant">
+              receipt_long
+            </span>
+            <span className="hidden sm:inline">Audit</span>
+          </button>
+        </div>
+
+        {/* Demo Collision / Reset Toggle */}
         {!isDemoMode ? (
           <button
             onClick={onTriggerDemo}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-rose-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-[11px] font-bold shadow-lg shadow-rose-600/15 transition-all duration-150 active:scale-95"
+            className="flex items-center px-3 xl:px-4 py-2 rounded bg-status-critical/20 border border-status-critical text-status-critical font-body-sm text-body-sm hover:bg-status-critical/30 transition-colors active:scale-95"
           >
-            <AlertTriangle className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Demo Collision</span>
+            <span className="material-symbols-outlined text-[18px] mr-1.5">warning</span>
+            <span className="whitespace-nowrap">Demo Collision</span>
           </button>
         ) : (
           <button
             onClick={onResetDemo}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/80 hover:bg-emerald-600 text-white text-[11px] font-bold transition-all duration-150"
+            className="flex items-center px-3 xl:px-4 py-2 rounded bg-status-success/20 border border-status-success text-status-success font-body-sm text-body-sm hover:bg-status-success/30 transition-colors active:scale-95"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            Reset
+            <span className="material-symbols-outlined text-[18px] mr-1.5">restart_alt</span>
+            <span className="whitespace-nowrap">Reset State</span>
           </button>
         )}
 
         {/* Clock */}
-        <div className="hidden sm:flex items-center gap-2 pl-2.5 border-l border-border-subtle">
-          <Clock className="w-3.5 h-3.5 text-slate-500" />
-          <span className="text-[11px] font-mono font-medium text-slate-300">{timeStr}</span>
+        <div className="hidden lg:flex items-center pl-4 border-l border-grid-line">
+          <span className="material-symbols-outlined text-[18px] mr-2 text-on-surface-variant">
+            schedule
+          </span>
+          <span className="font-data-mono text-data-mono text-on-surface whitespace-nowrap">
+            {timeStr}
+          </span>
         </div>
       </div>
     </header>

@@ -1,18 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  X,
-  AlertTriangle,
-  ShieldCheck,
-  UserCheck,
-  Activity,
-  Check,
-  CornerDownRight,
-  TrendingUp,
-  Ban,
-} from "lucide-react";
-import { NetworkSummary, JunctionRisk, DeploymentRecommendation, Officer } from "@/types";
+import { NetworkSummary, JunctionRisk, DeploymentRecommendation } from "@/types";
 
 interface ContextPanelProps {
   data: NetworkSummary | null;
@@ -24,30 +13,34 @@ interface ContextPanelProps {
   onSimulateJunction: (junctionId: string) => void;
 }
 
-const severityConfig = {
+const severityColorMap = {
   CRITICAL: {
-    bg: "bg-red-500/8",
-    border: "border-red-500/25",
-    text: "text-red-400",
-    glow: "shadow-glow-rose",
+    border: "border-status-critical",
+    text: "text-status-critical",
+    bar: "bg-status-critical",
+    accent: "shadow-[0_0_16px_rgba(255,77,0,0.4)]",
+    badge: "MODERATE Risk",
   },
   HIGH: {
-    bg: "bg-orange-500/8",
-    border: "border-orange-500/25",
-    text: "text-orange-400",
-    glow: "shadow-glow-amber",
+    border: "border-status-danger",
+    text: "text-status-danger",
+    bar: "bg-status-danger",
+    accent: "shadow-[0_0_16px_rgba(239,68,68,0.4)]",
+    badge: "HIGH Risk",
   },
   MODERATE: {
-    bg: "bg-yellow-500/8",
-    border: "border-yellow-500/25",
-    text: "text-yellow-400",
-    glow: "",
+    border: "border-status-warning",
+    text: "text-status-warning",
+    bar: "bg-status-warning",
+    accent: "shadow-[0_0_16px_rgba(245,158,11,0.3)]",
+    badge: "MODERATE Risk",
   },
   LOW: {
-    bg: "bg-emerald-500/8",
-    border: "border-emerald-500/25",
-    text: "text-emerald-400",
-    glow: "",
+    border: "border-status-success",
+    text: "text-status-success",
+    bar: "bg-status-success",
+    accent: "shadow-[0_0_16px_rgba(16,185,129,0.3)]",
+    badge: "LOW Risk",
   },
 };
 
@@ -72,8 +65,8 @@ export const ContextPanel: React.FC<ContextPanelProps> = ({
   const junctionRisk: JunctionRisk | undefined = data.junctionRisks[selectedJunctionId];
   const pendingRec = data.recommendations.find((r) => r.targetJunctionId === selectedJunctionId);
   const availableOfficers = data.officers.filter((o) => o.isAvailable);
-  const severity = (junctionRisk?.severity || "LOW") as keyof typeof severityConfig;
-  const config = severityConfig[severity] || severityConfig.LOW;
+  const severity = (junctionRisk?.severity || "LOW") as keyof typeof severityColorMap;
+  const styleConfig = severityColorMap[severity] || severityColorMap.LOW;
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -82,7 +75,7 @@ export const ContextPanel: React.FC<ContextPanelProps> = ({
 
   const handleAccept = (recId: string) => {
     onAcceptRecommendation(recId);
-    showToast("✓ Dispatch recommendation accepted & logged to audit ledger.");
+    showToast("✓ Dispatch recommendation accepted & logged to immutable audit ledger.");
   };
 
   const handleReject = (recId: string) => {
@@ -101,204 +94,252 @@ export const ContextPanel: React.FC<ContextPanelProps> = ({
 
   const factors = junctionRisk
     ? [
-        { label: "Incident Impact", value: junctionRisk.incidentFactor, color: "bg-red-500" },
-        { label: "Congestion", value: junctionRisk.congestionFactor, color: "bg-amber-500" },
-        { label: "Network Centrality", value: junctionRisk.criticalityFactor, color: "bg-sky-500" },
-        { label: "Exposure", value: junctionRisk.exposureFactor, color: "bg-purple-500" },
+        {
+          label: "Incident Impact",
+          value: junctionRisk.incidentFactor,
+          color: "bg-status-danger",
+        },
+        {
+          label: "Congestion",
+          value: junctionRisk.congestionFactor,
+          color: "bg-status-warning",
+        },
+        {
+          label: "Network Centrality",
+          value: junctionRisk.criticalityFactor,
+          color: "bg-primary-container",
+        },
+        {
+          label: "Exposure",
+          value: junctionRisk.exposureFactor,
+          color: "bg-secondary-fixed-dim",
+        },
       ]
     : [];
 
   return (
     <>
-      <aside className="w-drawer glass-raised border-l border-border-subtle flex flex-col overflow-y-auto select-none z-20 animate-slide-in-right shrink-0">
+      <aside className="w-[400px] bg-surface-elevated border-l border-grid-line flex flex-col shrink-0 z-20 shadow-2xl relative select-none animate-slide-in-right">
         {/* Toast Notification */}
         {toastMessage && (
-          <div className="p-2.5 bg-emerald-500/20 border-b border-emerald-500/30 text-emerald-300 text-[11px] font-bold text-center animate-fade-in flex items-center justify-center gap-1.5">
+          <div className="p-2.5 bg-status-success/15 border-b border-status-success/30 text-status-success text-body-sm font-bold text-center animate-fade-in flex items-center justify-center gap-1.5">
+            <span className="material-symbols-outlined text-[16px]">verified</span>
             {toastMessage}
           </div>
         )}
 
-        {/* ─── Header ─── */}
-        <div className="p-4 border-b border-border-subtle">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <span className="text-[9px] font-bold uppercase tracking-[0.15em] text-accent-blue">
-                Junction Intelligence
-              </span>
-              <h2 className="text-base font-bold text-white leading-tight mt-0.5 truncate">
-                {junctionRisk?.name || selectedJunctionId}
-              </h2>
-            </div>
+        {/* ─── Panel Header ─── */}
+        <div className="p-6 border-b border-grid-line bg-surface-container-low">
+          <div className="flex items-center justify-between mb-4">
+            <span className="font-label-caps text-label-caps text-primary tracking-widest uppercase">
+              Junction Intelligence
+            </span>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-surface hover:bg-surface-raised text-slate-500 hover:text-white transition-colors duration-150 shrink-0 ml-2"
+              className="text-on-surface-variant hover:text-on-surface transition-colors p-1 rounded hover:bg-surface-variant"
             >
-              <X className="w-4 h-4" />
+              <span className="material-symbols-outlined text-[20px]">close</span>
             </button>
           </div>
+          <h2 className="font-headline-lg text-headline-lg text-on-surface mb-2 leading-tight">
+            {junctionRisk?.name || selectedJunctionId}
+          </h2>
+          <p className="font-body-sm text-body-sm text-on-surface-variant flex items-center">
+            <span className="material-symbols-outlined text-[16px] mr-1 text-primary">
+              location_on
+            </span>
+            Nagpur LIVE
+          </p>
+        </div>
 
-          {/* Severity + Score Banner */}
+        {/* ─── Scrollable Body ─── */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Risk Score Card */}
           {junctionRisk && (
-            <div
-              className={`mt-3 p-3 rounded-xl border flex items-center justify-between ${config.bg} ${config.border}`}
-            >
-              <div className="flex items-center gap-2">
-                <AlertTriangle className={`w-4 h-4 ${config.text}`} />
-                <div>
-                  <div className={`text-[10px] font-bold uppercase tracking-wider ${config.text}`}>
+            <div className="bg-surface border border-outline-variant rounded-lg p-5 relative overflow-hidden group">
+              <div
+                className={`absolute left-0 top-0 bottom-0 w-1 ${styleConfig.bar} group-hover:glow-accent transition-all`}
+              />
+              <div className="flex justify-between items-start mb-4">
+                <div className={`flex items-center ${styleConfig.text}`}>
+                  <span className="material-symbols-outlined mr-2">
+                    {severity === "CRITICAL" ? "emergency" : "warning"}
+                  </span>
+                  <span className="font-label-caps text-label-caps font-bold uppercase tracking-wider">
                     {junctionRisk.severity} Risk
-                  </div>
-                  <div className="text-[9px] text-slate-500 font-mono">
-                    Confidence: {Math.round(junctionRisk.confidence * 100)}%
+                  </span>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-baseline justify-end">
+                    <span
+                      className={`font-display-metrics text-display-metrics ${styleConfig.text}`}
+                    >
+                      {Math.round(junctionRisk.riskScore)}
+                    </span>
+                    <span className="font-data-mono text-data-mono text-on-surface-variant ml-1">
+                      /100
+                    </span>
                   </div>
                 </div>
               </div>
-
-              {/* Large Score */}
-              <div className={`text-right ${config.text}`}>
-                <div className="text-2xl font-black font-mono leading-none">
-                  {Math.round(junctionRisk.riskScore)}
-                </div>
-                <div className="text-[9px] font-medium text-slate-500">/100</div>
+              <div className="flex justify-between items-center text-on-surface-variant font-body-sm text-body-sm">
+                <span>Confidence: {Math.round(junctionRisk.confidence * 100)}%</span>
+                <span className="material-symbols-outlined text-[18px]">trending_up</span>
               </div>
             </div>
           )}
-        </div>
 
-        {/* ─── Factor Breakdown ─── */}
-        {junctionRisk && (
-          <div className="p-4 border-b border-border-subtle space-y-3">
-            <div className="text-[9px] font-bold uppercase tracking-[0.15em] text-slate-500">
-              Risk Factor Analysis
-            </div>
-
-            <div className="space-y-2.5">
-              {factors.map((f) => (
-                <div key={f.label}>
-                  <div className="flex justify-between items-center mb-1">
-                    <span className="text-[11px] text-slate-400">{f.label}</span>
-                    <span className="text-[11px] font-mono font-bold text-slate-200">
-                      {Math.round(f.value)}
-                    </span>
+          {/* Risk Factor Analysis */}
+          {junctionRisk && (
+            <div>
+              <h3 className="font-label-caps text-label-caps text-on-surface-variant mb-4 uppercase tracking-wider border-b border-grid-line pb-2">
+                Risk Factor Analysis
+              </h3>
+              <div className="space-y-4">
+                {factors.map((f) => (
+                  <div key={f.label}>
+                    <div className="flex justify-between font-data-mono text-data-mono mb-1.5">
+                      <span className="text-on-surface-variant">{f.label}</span>
+                      <span className="text-on-surface font-bold">{Math.round(f.value)}</span>
+                    </div>
+                    <div className="h-1 w-full bg-surface-variant rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${f.color} rounded-full relative transition-all duration-500`}
+                        style={{ width: `${Math.min(Math.max(f.value, 2), 100)}%` }}
+                      >
+                        <div className="absolute right-0 top-0 bottom-0 w-1 bg-white opacity-60" />
+                      </div>
+                    </div>
                   </div>
-                  <div className="w-full h-1 bg-surface-overlay rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${f.color}`}
-                      style={{ width: `${Math.min(f.value, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Diagnosis */}
-            <div className="pt-2 border-t border-border-subtle">
-              <div className="text-[10px] text-slate-300 leading-relaxed">
-                <span className="font-bold text-slate-200">Diagnosis: </span>
-                {junctionRisk.whyExplanation}
+                ))}
               </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ─── Police Dispatch Card ─── */}
-        <div className="p-4 space-y-3 flex-1">
+          {/* Diagnosis Panel */}
+          {junctionRisk && (
+            <div className="bg-surface-container rounded-lg p-4 border border-grid-line">
+              <p className="font-body-sm text-body-sm text-on-surface leading-relaxed">
+                <span className="font-bold text-on-surface-variant">Diagnosis: </span>
+                {junctionRisk.whyExplanation}
+              </p>
+            </div>
+          )}
+
+          {/* Police Dispatch Section */}
           {pendingRec ? (
-            <div className="p-4 rounded-xl bg-gradient-to-b from-sky-950/30 to-surface border border-accent-blue/20 space-y-3 shadow-glow-blue">
+            <div className="bg-surface-container rounded-lg p-5 border border-primary/40 space-y-4 shadow-lg shadow-cyan-500/5">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5 text-[11px] font-bold text-accent-blue">
-                  <ShieldCheck className="w-4 h-4" />
+                <div className="flex items-center text-primary font-label-caps text-label-caps uppercase tracking-wider">
+                  <span className="material-symbols-outlined text-[18px] mr-1.5 text-primary">
+                    local_police
+                  </span>
                   <span>OR-Tools Police Dispatch</span>
                 </div>
-                <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-accent-blue/15 text-accent-blue border border-accent-blue/20">
+                <span className="font-data-mono text-data-mono px-2 py-0.5 rounded bg-primary/10 border border-primary/30 text-primary">
                   ETA {pendingRec.estimatedArrivalMinutes}m
                 </span>
               </div>
 
               <div className="space-y-1">
-                <div className="text-sm font-bold text-white">{pendingRec.officerName}</div>
-                <p className="text-[10px] text-slate-400 leading-relaxed">{pendingRec.rationale}</p>
-                <div className="text-[10px] text-emerald-400 font-semibold mt-1">
-                  <TrendingUp className="w-3 h-3 inline mr-1" />
+                <div className="font-headline-md text-headline-md text-on-surface font-bold">
+                  {pendingRec.officerName}
+                </div>
+                <p className="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+                  {pendingRec.rationale}
+                </p>
+                <div className="font-data-mono text-data-mono text-status-success font-semibold pt-1">
                   Expected Benefit: -{pendingRec.expectedRiskReduction} risk pts
                 </div>
               </div>
 
               {/* Action Buttons */}
-              <div className="grid grid-cols-3 gap-1.5 pt-1">
+              <div className="grid grid-cols-3 gap-2 pt-2">
                 <button
                   onClick={() => handleAccept(pendingRec.recommendationId)}
-                  className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shadow-sm transition-all duration-150 active:scale-95"
+                  className="flex items-center justify-center py-2.5 px-3 rounded bg-status-success/20 border border-status-success text-status-success hover:bg-status-success/30 font-body-sm text-body-sm font-semibold transition-colors active:scale-95"
                 >
-                  <Check className="w-3.5 h-3.5" />
+                  <span className="material-symbols-outlined text-[18px] mr-1">check</span>
                   Accept
                 </button>
                 <button
                   onClick={() => setOverrideModalRec(pendingRec)}
-                  className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg bg-surface hover:bg-surface-raised text-slate-200 text-[11px] font-semibold border border-border transition-all duration-150"
+                  className="flex items-center justify-center py-2.5 px-3 rounded bg-surface border border-outline-variant text-status-warning hover:bg-surface-variant font-body-sm text-body-sm font-semibold transition-colors active:scale-95"
                 >
-                  <CornerDownRight className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="material-symbols-outlined text-[18px] mr-1">redo</span>
                   Override
                 </button>
                 <button
                   onClick={() => handleReject(pendingRec.recommendationId)}
-                  className="flex items-center justify-center gap-1 px-2 py-2 rounded-lg bg-surface hover:bg-red-500/20 text-slate-400 hover:text-red-400 text-[11px] font-semibold border border-border transition-all duration-150"
+                  className="flex items-center justify-center py-2.5 px-3 rounded bg-surface border border-outline-variant text-on-surface-variant hover:text-status-danger hover:border-status-danger/40 font-body-sm text-body-sm font-semibold transition-colors active:scale-95"
                 >
-                  <Ban className="w-3.5 h-3.5" />
+                  <span className="material-symbols-outlined text-[18px] mr-1">close</span>
                   Reject
                 </button>
               </div>
             </div>
           ) : (
-            <div className="p-3 rounded-xl bg-surface border border-border-subtle text-[11px] text-slate-500 text-center">
+            <div className="pt-2 border-t border-grid-line space-y-3">
               {junctionRisk?.policeAssigned ? (
-                <div className="text-emerald-400 font-semibold flex items-center justify-center gap-1.5">
-                  <UserCheck className="w-4 h-4" /> Police Officer Active on Ground
-                </div>
+                <button className="w-full flex items-center justify-center py-3 px-4 rounded-lg bg-surface border border-status-success/30 text-status-success hover:bg-status-success/10 transition-colors font-body-sm text-body-sm font-semibold">
+                  <span className="material-symbols-outlined text-[20px] mr-2">person_pin</span>
+                  Police Officer Active on Ground
+                </button>
               ) : (
-                "No pending dispatch recommendations for this junction."
+                <div className="p-3.5 rounded-lg bg-surface border border-grid-line text-center font-body-sm text-body-sm text-on-surface-variant">
+                  No active incidents or pending police dispatch.
+                </div>
               )}
             </div>
           )}
 
-          {/* Simulate Button */}
+          {/* What-If Disruption Trigger Button */}
           <button
             onClick={() => onSimulateJunction(selectedJunctionId)}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-surface hover:bg-surface-raised text-slate-300 text-[11px] font-bold border border-border-subtle transition-all duration-150 active:scale-[0.98]"
+            className="w-full flex items-center justify-center py-3 px-4 rounded-lg bg-surface-container-high border border-primary text-primary hover:bg-primary/10 transition-colors font-body-sm text-body-sm font-semibold relative overflow-hidden group active:scale-95"
           >
-            <Activity className="w-4 h-4 text-accent-blue" />
-            Run What-If Disruption on Node
+            <div className="absolute inset-0 bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className="material-symbols-outlined text-[20px] mr-2 group-hover:glow-text transition-all">
+              show_chart
+            </span>
+            <span className="group-hover:glow-text transition-all">
+              Run What-If Disruption on Node
+            </span>
           </button>
         </div>
       </aside>
 
       {/* ─── Override Modal ─── */}
       {overrideModalRec && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="w-full max-w-md glass-raised p-5 rounded-2xl border border-border space-y-4 animate-scale-in">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-white text-sm">Human Operator Dispatch Override</h3>
+        <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="w-full max-w-md bg-surface-elevated p-6 rounded-xl border border-grid-line space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-grid-line pb-3">
+              <h3 className="font-headline-md text-headline-md font-bold text-primary">
+                Operator Dispatch Override
+              </h3>
               <button
                 onClick={() => setOverrideModalRec(null)}
-                className="p-1 rounded-lg bg-surface hover:bg-surface-raised text-slate-400 hover:text-white transition-colors"
+                className="p-1 rounded text-on-surface-variant hover:text-on-surface"
               >
-                <X className="w-4 h-4" />
+                <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <p className="text-xs text-slate-400">
-              Override assignment for{" "}
-              <span className="font-bold text-accent-blue">{overrideModalRec.targetJunctionName}</span>
+            <p className="font-body-sm text-body-sm text-on-surface-variant">
+              Reassign police resource for{" "}
+              <span className="font-bold text-primary">
+                {overrideModalRec.targetJunctionName}
+              </span>
             </p>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+            <div className="space-y-2">
+              <label className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider block">
                 Select Alternate Officer
               </label>
               <select
                 value={selectedAltOfficer}
                 onChange={(e) => setSelectedAltOfficer(e.target.value)}
-                className="w-full bg-surface border border-border rounded-lg p-2 text-xs text-white focus:outline-none focus:border-accent-blue transition-colors"
+                className="w-full bg-surface border border-outline-variant rounded p-2.5 font-body-sm text-body-sm text-on-surface focus:outline-none focus:border-primary transition-colors"
               >
                 <option value="">— Choose Officer —</option>
                 {availableOfficers.map((off) => (
@@ -309,29 +350,29 @@ export const ContextPanel: React.FC<ContextPanelProps> = ({
               </select>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                Override Reason (Required for Audit Trail)
+            <div className="space-y-2">
+              <label className="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider block">
+                Override Rationale (Required for Audit Trail)
               </label>
               <textarea
                 value={overrideReason}
                 onChange={(e) => setOverrideReason(e.target.value)}
                 placeholder="e.g. Officer closer to spot via East corridor bypass..."
-                className="w-full h-20 bg-surface border border-border rounded-lg p-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-accent-blue transition-colors resize-none"
+                className="w-full h-20 bg-surface border border-outline-variant rounded p-2.5 font-body-sm text-body-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary transition-colors resize-none"
               />
             </div>
 
-            <div className="flex justify-end gap-2 pt-1">
+            <div className="flex justify-end gap-3 pt-2">
               <button
                 onClick={() => setOverrideModalRec(null)}
-                className="px-3 py-1.5 rounded-lg bg-surface text-xs text-slate-400 hover:text-white transition-colors"
+                className="px-4 py-2 rounded bg-surface text-body-sm text-on-surface-variant hover:text-on-surface transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmOverride}
                 disabled={!selectedAltOfficer || !overrideReason}
-                className="px-4 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-bold text-white transition-all"
+                className="px-4 py-2 rounded bg-status-warning/20 border border-status-warning text-status-warning hover:bg-status-warning/30 disabled:opacity-40 disabled:cursor-not-allowed font-body-sm text-body-sm font-bold transition-all"
               >
                 Confirm Override
               </button>

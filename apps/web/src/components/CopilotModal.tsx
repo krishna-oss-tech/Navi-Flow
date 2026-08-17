@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import { Sparkles, X, Send, Bot, User, CheckCircle2 } from "lucide-react";
 import { API_BASE_URL } from "@/utils/api";
 
 interface CopilotModalProps {
@@ -70,7 +69,12 @@ export const CopilotModal: React.FC<CopilotModalProps> = ({ isOpen, onClose }) =
       let grounding: any = null;
       let suggestions: string[] = [];
 
-      if (q.includes("why") || q.includes("sitabuldi") || q.includes("critical") || q.includes("risk")) {
+      if (
+        q.includes("why") ||
+        q.includes("sitabuldi") ||
+        q.includes("critical") ||
+        q.includes("risk")
+      ) {
         answer =
           "**Sitabuldi Interchange** is flagged as **CRITICAL (Risk Score: 92/100)**.\n\n" +
           "**Factor Breakdown**:\n" +
@@ -78,34 +82,63 @@ export const CopilotModal: React.FC<CopilotModalProps> = ({ isOpen, onClose }) =
           "• **Link Congestion**: 88/100 (Average speed degraded to 11 km/h on Wardha Rd North)\n" +
           "• **Network Centrality**: 94/100 (Primary junction bridging East and West Nagpur corridors)\n\n" +
           "**Operational Recommendation**: Deploy Patrol Unit MP-04 (Rajesh Sharma) to manage bottleneck and divert traffic via Dharampeth.";
-        grounding = { junction: "Sitabuldi Interchange", riskScore: 92, severity: "CRITICAL", congestion: "88%" };
-        suggestions = ["Review pending police deployment recommendations", "Simulate corridor traffic redistribution", "Inspect CCTV at Sitabuldi North"];
-      } else if (q.includes("police") || q.includes("officer") || q.includes("uncovered") || q.includes("dispatch") || q.includes("coverage")) {
+        grounding = {
+          junction: "Sitabuldi Interchange",
+          riskScore: 92,
+          severity: "CRITICAL",
+          congestion: "88%",
+        };
+        suggestions = [
+          "Review pending police deployment recommendations",
+          "Simulate corridor traffic redistribution",
+          "Inspect CCTV at Sitabuldi North",
+        ];
+      } else if (
+        q.includes("police") ||
+        q.includes("officer") ||
+        q.includes("uncovered") ||
+        q.includes("dispatch") ||
+        q.includes("coverage")
+      ) {
         answer =
           "**Police Patrol & Dispatch Status**:\n\n" +
           "• **High-Risk Uncovered Junctions**: Sitabuldi Interchange (Urgent Dispatch Required)\n" +
           "• **Active Patrol Reserves**: 12 officers on duty, 9 available for immediate deployment\n" +
           "• **Recommended Action**: Accept optimizer recommendation for Officer MP-04 to Sitabuldi (ETA: 3.4 mins).";
         grounding = { availableOfficers: 9, activeDeployments: 3, pendingRecommendations: 1 };
-        suggestions = ["Accept recommended officer dispatch", "View officer assignments on map"];
-      } else if (q.includes("route") || q.includes("fastest") || q.includes("alternate") || q.includes("path")) {
+        suggestions = [
+          "Accept recommended officer dispatch",
+          "View officer assignments on map",
+        ];
+      } else if (
+        q.includes("route") ||
+        q.includes("fastest") ||
+        q.includes("alternate") ||
+        q.includes("path")
+      ) {
         answer =
           "**Corridor Routing Analysis (Rahate Colony → Agrasen Sq)**:\n\n" +
           "• **Recommended Route**: Central Avenue Arterial (14 mins • 4.6 km • Risk: 34)\n" +
           "• **Avoid**: Direct Wardha Rd / Sitabuldi Flyover (Delay: +22 mins due to incident queuing)\n" +
           "• **Low-Risk Backup**: Outer Ring Road Bypass (17 mins • 6.2 km • Risk: 22)";
-        grounding = { recommendedTravelTime: "14 mins", riskScore: 34, vehicleComposition: "45% 2-Wheelers, 25% Cars" };
-        suggestions = ["Open Route Intelligence Panel", "Simulate capacity shock on Central Ave"];
+        grounding = {
+          recommendedTravelTime: "14 mins",
+          riskScore: 34,
+          vehicleComposition: "45% 2-Wheelers, 25% Cars",
+        };
+        suggestions = [
+          "Open Route Intelligence Panel",
+          "Simulate capacity shock on Central Ave",
+        ];
       } else {
         answer =
-          "**Nagpur Traffic Command Status Overview**:\n\n" +
-          "• **Average Network Speed**: 34.2 km/h (Nominal: 45.0 km/h)\n" +
-          "• **Congestion Index**: 42/100 (Moderate)\n" +
-          "• **Critical Junctions**: 1 (Sitabuldi Interchange)\n" +
-          "• **Active Deployments**: 3 patrol units deployed across key intersections\n" +
-          "• **CCTV Edge Vision**: 4 feeds active with Zero-PII aggregated counts";
-        grounding = { avgSpeedKmh: 34.2, congestionIndex: 42, activeIncidents: 1, activeOfficers: 12 };
-        suggestions = ["Why is Sitabuldi critical?", "Which high-risk locations are currently uncovered?", "Provide a network speed & delay overview"];
+          "**Nagpur ITMS Telemetry Operational Status**:\n\n" +
+          "• **Average Speed**: 36.8 km/h across monitored arterial corridors\n" +
+          "• **Network Congestion Score**: 38.4 / 100\n" +
+          "• **Critical Junctions**: 0 active chokepoints\n" +
+          "• **Data Provenance**: Edge Optical Vision + TomTom GPS Feed (96% confidence score).";
+        grounding = { averageSpeedKmh: 36.8, congestionScore: 38.4, criticalJunctions: 0 };
+        suggestions = ["Why is Sitabuldi critical?", "Show recommended routes"];
       }
 
       setMessages([
@@ -124,61 +157,62 @@ export const CopilotModal: React.FC<CopilotModalProps> = ({ isOpen, onClose }) =
 
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4 select-none animate-fade-in">
-      <div className="w-full max-w-2xl h-[560px] glass-accent rounded-2xl flex flex-col justify-between overflow-hidden shadow-2xl animate-scale-in">
+      <div className="w-full max-w-2xl h-[560px] bg-surface-elevated rounded-xl border border-grid-line flex flex-col justify-between overflow-hidden shadow-2xl animate-scale-in">
         {/* Header */}
-        <div className="p-4 border-b border-border-subtle flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-indigo-500/15 text-indigo-400 border border-indigo-500/20">
-              <Sparkles className="w-4 h-4" />
+        <div className="p-5 border-b border-grid-line bg-surface-container-low flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded bg-secondary/15 text-secondary border border-secondary/30 flex items-center justify-center">
+              <span className="material-symbols-outlined text-[20px]">auto_awesome</span>
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+              <h3 className="font-headline-md text-headline-md text-on-surface font-bold flex items-center gap-2">
                 Operations Copilot
-                <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                  Grounded
+                <span className="font-data-mono text-data-mono px-2 py-0.5 rounded-full bg-status-success/15 text-status-success border border-status-success/30">
+                  GROUNDED
                 </span>
               </h3>
-              <p className="text-[10px] text-slate-500">
-                Real-time decision explanation layer
+              <p className="font-body-sm text-body-sm text-on-surface-variant">
+                Human-in-the-loop decision explanation &amp; query synthesis
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-surface hover:bg-surface-raised text-slate-500 hover:text-white transition-colors"
+            className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-colors"
           >
-            <X className="w-4 h-4" />
+            <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+        {/* Messages List */}
+        <div className="flex-1 overflow-y-auto p-5 space-y-4 font-body-sm text-body-sm">
           {messages.map((m, idx) => (
             <div
               key={idx}
-              className={`flex gap-2.5 ${m.role === "user" ? "justify-end" : "justify-start"} animate-fade-in`}
+              className={`flex gap-3 ${m.role === "user" ? "justify-end" : "justify-start"} animate-fade-in`}
             >
               {m.role === "copilot" && (
-                <div className="w-7 h-7 rounded-lg bg-indigo-500/15 text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
-                  <Bot className="w-3.5 h-3.5" />
+                <div className="w-8 h-8 rounded bg-secondary/15 text-secondary border border-secondary/30 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-[18px]">smart_toy</span>
                 </div>
               )}
               <div
-                className={`max-w-[80%] rounded-2xl p-3 space-y-2 ${
+                className={`max-w-[80%] rounded-lg p-4 space-y-2.5 ${
                   m.role === "user"
-                    ? "bg-accent-blue/15 text-white border border-accent-blue/20 rounded-tr-sm"
-                    : "bg-surface border border-border-subtle text-slate-200 rounded-tl-sm"
+                    ? "bg-primary text-on-primary font-medium"
+                    : "bg-surface border border-outline-variant text-on-surface"
                 }`}
               >
                 <div className="whitespace-pre-wrap leading-relaxed">{m.content}</div>
 
                 {/* Grounding Data */}
                 {m.grounding && Object.keys(m.grounding).length > 0 && (
-                  <details className="group">
-                    <summary className="text-[9px] font-bold text-accent-blue uppercase tracking-wider cursor-pointer flex items-center gap-1 hover:text-accent-cyan transition-colors">
-                      <CheckCircle2 className="w-3 h-3" /> View Telemetry Data
+                  <details className="group pt-1 border-t border-grid-line">
+                    <summary className="font-label-caps text-label-caps text-primary uppercase tracking-wider cursor-pointer flex items-center gap-1 hover:text-primary-fixed transition-colors">
+                      <span className="material-symbols-outlined text-[14px]">verified</span> View Grounded
+                      Telemetry
                     </summary>
-                    <div className="mt-1.5 p-2 rounded-lg bg-surface-overlay border border-border-subtle font-mono text-[9px] text-slate-400">
+                    <div className="mt-2 p-2.5 rounded bg-surface-container border border-grid-line font-data-mono text-data-mono text-on-surface-variant">
                       <pre className="overflow-x-auto">{JSON.stringify(m.grounding, null, 2)}</pre>
                     </div>
                   </details>
@@ -186,12 +220,12 @@ export const CopilotModal: React.FC<CopilotModalProps> = ({ isOpen, onClose }) =
 
                 {/* Suggestions */}
                 {m.suggestions && m.suggestions.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
+                  <div className="flex flex-wrap gap-2 pt-1">
                     {m.suggestions.map((sug, sIdx) => (
                       <button
                         key={sIdx}
                         onClick={() => handleSend(sug)}
-                        className="px-2.5 py-1 rounded-full bg-surface-overlay hover:bg-surface-raised text-accent-blue border border-accent-blue/15 text-[10px] font-medium transition-all hover:border-accent-blue/30"
+                        className="px-3 py-1 rounded-full bg-surface-container-high hover:bg-surface-variant text-primary border border-primary/20 font-body-sm text-body-sm transition-all hover:border-primary/40"
                       >
                         {sug}
                       </button>
@@ -200,36 +234,36 @@ export const CopilotModal: React.FC<CopilotModalProps> = ({ isOpen, onClose }) =
                 )}
               </div>
               {m.role === "user" && (
-                <div className="w-7 h-7 rounded-lg bg-accent-blue/15 text-accent-blue border border-accent-blue/20 flex items-center justify-center shrink-0">
-                  <User className="w-3.5 h-3.5" />
+                <div className="w-8 h-8 rounded bg-primary/20 text-primary border border-primary/30 flex items-center justify-center shrink-0">
+                  <span className="material-symbols-outlined text-[18px]">person</span>
                 </div>
               )}
             </div>
           ))}
           {loading && (
-            <div className="flex items-center gap-2 text-slate-500 text-[10px]">
-              <span className="w-2 h-2 rounded-full bg-accent-blue animate-ping" />
+            <div className="flex items-center gap-2 text-on-surface-variant font-body-sm text-body-sm">
+              <span className="w-2 h-2 rounded-full bg-primary animate-ping" />
               Synthesizing grounded response...
             </div>
           )}
         </div>
 
         {/* Input Bar */}
-        <div className="p-3 border-t border-border-subtle flex gap-2">
+        <div className="p-4 border-t border-grid-line bg-surface-container-low flex gap-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend(input)}
             placeholder="Ask about traffic flow, risk hotspots, police dispatches..."
-            className="flex-1 bg-surface border border-border rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-accent-blue transition-colors"
+            className="flex-1 bg-surface border border-outline-variant rounded px-4 py-2.5 font-body-sm text-body-sm text-on-surface placeholder-on-surface-variant/50 focus:outline-none focus:border-primary transition-colors"
           />
           <button
             onClick={() => handleSend(input)}
             disabled={!input.trim() || loading}
-            className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold text-xs flex items-center gap-1.5 transition-all active:scale-95"
+            className="px-5 py-2.5 rounded bg-primary text-on-primary disabled:opacity-40 disabled:cursor-not-allowed font-bold font-body-sm text-body-sm flex items-center gap-1.5 transition-all hover:bg-primary-fixed active:scale-95"
           >
-            <Send className="w-3.5 h-3.5" />
+            <span className="material-symbols-outlined text-[18px]">send</span>
           </button>
         </div>
       </div>

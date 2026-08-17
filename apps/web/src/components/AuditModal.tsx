@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { X, FileText } from "lucide-react";
 import { AuditEvent } from "@/types";
 import { API_BASE_URL } from "@/utils/api";
 
@@ -11,15 +10,43 @@ interface AuditModalProps {
 }
 
 const eventTypeColors: Record<string, { bg: string; text: string; dot: string }> = {
-  DEPLOYMENT_ACCEPTED: { bg: "bg-emerald-500/10", text: "text-emerald-400", dot: "bg-emerald-500" },
-  DEPLOYMENT_OVERRIDDEN: { bg: "bg-amber-500/10", text: "text-amber-400", dot: "bg-amber-500" },
-  DEPLOYMENT_REJECTED: { bg: "bg-red-500/10", text: "text-red-400", dot: "bg-red-500" },
-  INCIDENT_CREATED: { bg: "bg-rose-500/10", text: "text-rose-400", dot: "bg-rose-500" },
-  SIMULATION_RUN: { bg: "bg-sky-500/10", text: "text-sky-400", dot: "bg-sky-500" },
-  STATE_RESET: { bg: "bg-slate-500/10", text: "text-slate-400", dot: "bg-slate-500" },
+  DEPLOYMENT_ACCEPTED: {
+    bg: "bg-status-success/15",
+    text: "text-status-success",
+    dot: "bg-status-success",
+  },
+  DEPLOYMENT_OVERRIDDEN: {
+    bg: "bg-status-warning/15",
+    text: "text-status-warning",
+    dot: "bg-status-warning",
+  },
+  DEPLOYMENT_REJECTED: {
+    bg: "bg-status-critical/15",
+    text: "text-status-critical",
+    dot: "bg-status-critical",
+  },
+  INCIDENT_CREATED: {
+    bg: "bg-status-danger/15",
+    text: "text-status-danger",
+    dot: "bg-status-danger",
+  },
+  SIMULATION_RUN: {
+    bg: "bg-primary/15",
+    text: "text-primary",
+    dot: "bg-primary",
+  },
+  STATE_RESET: {
+    bg: "bg-surface-variant",
+    text: "text-on-surface-variant",
+    dot: "bg-outline",
+  },
 };
 
-const defaultColor = { bg: "bg-slate-500/10", text: "text-slate-400", dot: "bg-slate-500" };
+const defaultColor = {
+  bg: "bg-surface-variant",
+  text: "text-on-surface-variant",
+  dot: "bg-outline",
+};
 
 export const AuditModal: React.FC<AuditModalProps> = ({ isOpen, onClose }) => {
   const [events, setEvents] = useState<AuditEvent[]>([]);
@@ -48,78 +75,88 @@ export const AuditModal: React.FC<AuditModalProps> = ({ isOpen, onClose }) => {
 
   return (
     <div className="fixed inset-0 bg-black/75 backdrop-blur-md z-50 flex items-center justify-center p-4 select-none animate-fade-in">
-      <div className="w-full max-w-3xl h-[560px] glass-raised rounded-2xl flex flex-col overflow-hidden shadow-2xl animate-scale-in">
+      <div className="w-full max-w-3xl h-[560px] bg-surface-elevated rounded-xl border border-grid-line flex flex-col overflow-hidden shadow-2xl animate-scale-in">
         {/* Header */}
-        <div className="p-4 border-b border-border-subtle flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 rounded-xl bg-surface text-slate-400 border border-border-subtle">
-              <FileText className="w-4 h-4" />
+        <div className="p-5 border-b border-grid-line bg-surface-container-low flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded bg-surface border border-grid-line flex items-center justify-center text-on-surface-variant">
+              <span className="material-symbols-outlined text-[20px]">receipt_long</span>
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                Audit Trail
-                <span className="text-[9px] uppercase font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/20">
-                  Immutable
+              <h3 className="font-headline-md text-headline-md text-on-surface font-bold flex items-center gap-2">
+                Immutable Audit Trail
+                <span className="font-data-mono text-data-mono px-2 py-0.5 rounded-full bg-status-success/15 text-status-success border border-status-success/30">
+                  VERIFIED LOG
                 </span>
               </h3>
-              <p className="text-[10px] text-slate-500">
-                Complete record of operator decisions &amp; system events
+              <p className="font-body-sm text-body-sm text-on-surface-variant">
+                Complete record of operator decisions, dispatches &amp; system state events
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg bg-surface hover:bg-surface-raised text-slate-500 hover:text-white transition-colors"
+            className="p-1 rounded text-on-surface-variant hover:text-on-surface hover:bg-surface-variant transition-colors"
           >
-            <X className="w-4 h-4" />
+            <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
         {/* Timeline */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 overflow-y-auto p-5">
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="skeleton h-16 w-full" />
+                <div key={i} className="skeleton h-16 w-full rounded" />
               ))}
             </div>
           ) : events.length === 0 ? (
-            <div className="text-center py-16 text-slate-500 text-xs">
+            <div className="text-center py-16 text-on-surface-variant font-body-sm text-body-sm">
               No audit events recorded in this session
             </div>
           ) : (
             <div className="relative">
               {/* Timeline line */}
-              <div className="absolute left-[11px] top-2 bottom-2 w-px bg-border-subtle" />
+              <div className="absolute left-[11px] top-2 bottom-2 w-px bg-grid-line" />
 
-              <div className="space-y-1">
+              <div className="space-y-2">
                 {events.map((ev) => {
                   const colors = eventTypeColors[ev.eventType] || defaultColor;
                   return (
                     <div key={ev.eventId} className="relative pl-8 py-2 group">
                       {/* Timeline dot */}
                       <div
-                        className={`absolute left-[7px] top-[14px] w-[9px] h-[9px] rounded-full border-2 border-[#070a0f] ${colors.dot} z-10`}
+                        className={`absolute left-1.5 top-3.5 w-2.5 h-2.5 rounded-full ${colors.dot} ring-4 ring-surface-elevated`}
                       />
 
-                      <div className="p-3 rounded-xl bg-surface border border-border-subtle group-hover:bg-surface-raised transition-colors">
-                        <div className="flex items-center justify-between mb-1">
-                          <span
-                            className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold uppercase tracking-wider ${colors.bg} ${colors.text}`}
-                          >
-                            {ev.eventType.replace(/_/g, " ")}
-                          </span>
-                          <span className="text-[10px] font-mono text-slate-500">
+                      <div className="p-3.5 rounded-lg bg-surface border border-outline-variant group-hover:bg-surface-container transition-colors">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`px-2 py-0.5 rounded font-label-caps text-label-caps uppercase tracking-wider ${colors.bg} ${colors.text}`}
+                            >
+                              {ev.eventType.replace(/_/g, " ")}
+                            </span>
+                            <span className="font-data-mono text-data-mono text-on-surface-variant">
+                              by {ev.actor}
+                            </span>
+                          </div>
+                          <span className="font-data-mono text-data-mono text-on-surface-variant">
                             {new Date(ev.timestamp).toLocaleTimeString("en-IN", {
-                              timeZone: "Asia/Kolkata",
                               hour12: false,
                             })}
                           </span>
                         </div>
-                        <div className="text-[11px] font-semibold text-slate-200">{ev.summary}</div>
-                        <div className="text-[9px] text-slate-500 font-mono mt-1">
-                          Actor: <span className="text-slate-400">{ev.actor}</span>
+
+                        <div className="text-on-surface font-body-sm text-body-sm font-medium mt-1.5">
+                          {ev.summary}
                         </div>
+
+                        {ev.details && Object.keys(ev.details).length > 0 && (
+                          <div className="mt-2 p-2 rounded bg-surface-container font-data-mono text-data-mono text-on-surface-variant border border-grid-line overflow-x-auto">
+                            <pre>{JSON.stringify(ev.details, null, 2)}</pre>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );

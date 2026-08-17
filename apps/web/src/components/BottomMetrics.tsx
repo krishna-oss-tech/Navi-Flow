@@ -1,82 +1,88 @@
 "use client";
 
 import React from "react";
-import { Gauge, Flame, AlertOctagon, ShieldCheck, Zap } from "lucide-react";
 import { SystemMetrics } from "@/types";
 
 interface BottomMetricsProps {
   metrics: SystemMetrics | undefined;
 }
 
-const MetricPill: React.FC<{
-  icon: React.ElementType;
-  label: string;
-  value: string | number;
-  unit?: string;
-  iconColor: string;
-  valueColor?: string;
-}> = ({ icon: Icon, label, value, unit, iconColor, valueColor = "text-white" }) => (
-  <div className="flex items-center gap-2 px-3">
-    <Icon className={`w-3.5 h-3.5 ${iconColor} shrink-0`} />
-    <div className="flex items-baseline gap-1">
-      <span className={`text-xs font-mono font-bold ${valueColor}`}>{value}</span>
-      {unit && <span className="text-[9px] text-slate-500">{unit}</span>}
-    </div>
-  </div>
-);
-
-const Divider = () => <div className="w-px h-4 bg-white/8" />;
-
 export const BottomMetrics: React.FC<BottomMetricsProps> = ({ metrics }) => {
   if (!metrics) return null;
 
   return (
-    <div className="glass-raised rounded-2xl shadow-float flex items-center h-10 px-1 select-none">
-      <MetricPill
-        icon={Gauge}
-        label="Speed"
-        value={metrics.averageSpeedKmh}
-        unit="km/h"
-        iconColor="text-accent-blue"
-      />
-      <Divider />
-      <MetricPill
-        icon={Zap}
-        label="Congestion"
-        value={metrics.averageCongestionScore}
-        unit="/100"
-        iconColor="text-amber-400"
-        valueColor="text-amber-300"
-      />
-      <Divider />
-      <MetricPill
-        icon={Flame}
-        label="Critical"
-        value={metrics.criticalJunctions}
-        iconColor="text-red-400"
-        valueColor={metrics.criticalJunctions > 0 ? "text-red-400" : "text-white"}
-      />
-      <Divider />
-      <MetricPill
-        icon={AlertOctagon}
-        label="Incidents"
-        value={metrics.activeIncidentsCount}
-        iconColor="text-rose-400"
-        valueColor={metrics.activeIncidentsCount > 0 ? "text-rose-400" : "text-white"}
-      />
-      <Divider />
-      <MetricPill
-        icon={ShieldCheck}
-        label="Officers"
-        value={metrics.availableOfficersCount}
-        iconColor="text-emerald-400"
-        valueColor="text-emerald-300"
-      />
+    <div className="glass-panel rounded-full border border-grid-line px-6 py-2.5 flex items-center space-x-6 xl:space-x-8 z-10 shadow-2xl select-none">
+      {/* Speed */}
+      <div className="flex items-center">
+        <span className="material-symbols-outlined text-[20px] text-primary mr-2">speed</span>
+        <span className="font-data-mono text-data-mono text-on-surface font-bold text-lg">
+          {metrics.averageSpeedKmh}
+        </span>
+        <span className="font-label-caps text-label-caps text-on-surface-variant ml-1">km/h</span>
+      </div>
 
-      <Divider />
-      <div className="flex items-center gap-1.5 px-3">
-        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-        <span className="text-[9px] font-mono text-slate-500 whitespace-nowrap">Nagpur ITMS</span>
+      {/* Congestion */}
+      <div className="flex items-center">
+        <span className="material-symbols-outlined text-[20px] text-status-warning mr-2">bolt</span>
+        <span className="font-data-mono text-data-mono text-status-warning font-bold text-lg">
+          {metrics.averageCongestionScore}
+        </span>
+        <span className="font-label-caps text-label-caps text-on-surface-variant ml-1">/100</span>
+      </div>
+
+      {/* Critical Junctions */}
+      <div className="flex items-center">
+        <span
+          className={`material-symbols-outlined text-[20px] mr-2 ${
+            metrics.criticalJunctions > 0 ? "text-status-critical" : "text-on-surface-variant"
+          }`}
+        >
+          local_fire_department
+        </span>
+        <span
+          className={`font-data-mono text-data-mono font-bold text-lg ${
+            metrics.criticalJunctions > 0 ? "text-status-critical" : "text-on-surface"
+          }`}
+        >
+          {metrics.criticalJunctions}
+        </span>
+      </div>
+
+      {/* Active Incidents */}
+      <div className="flex items-center">
+        <span
+          className={`material-symbols-outlined text-[20px] mr-2 ${
+            metrics.activeIncidentsCount > 0 ? "text-status-danger" : "text-on-surface-variant"
+          }`}
+        >
+          error
+        </span>
+        <span
+          className={`font-data-mono text-data-mono font-bold text-lg ${
+            metrics.activeIncidentsCount > 0 ? "text-status-danger" : "text-on-surface"
+          }`}
+        >
+          {metrics.activeIncidentsCount}
+        </span>
+      </div>
+
+      {/* Available Officers */}
+      <div className="flex items-center">
+        <span className="material-symbols-outlined text-[20px] text-status-success mr-2">
+          check_circle
+        </span>
+        <span className="font-data-mono text-data-mono text-status-success font-bold text-lg">
+          {metrics.availableOfficersCount}
+        </span>
+      </div>
+
+      {/* ITMS Status */}
+      <div className="h-4 w-px bg-grid-line" />
+      <div className="flex items-center">
+        <div className="w-2 h-2 rounded-full bg-status-success mr-2 animate-pulse" />
+        <span className="font-data-mono text-data-mono text-on-surface-variant text-xs">
+          Nagpur ITMS
+        </span>
       </div>
     </div>
   );

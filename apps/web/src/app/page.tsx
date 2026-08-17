@@ -309,8 +309,8 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-[#070a0f] text-slate-100 font-sans">
-      {/* ─── Top Command Strip ─── */}
+    <div className="bg-background text-on-surface h-screen w-screen overflow-hidden flex flex-col font-body-lg">
+      {/* ─── Top App Bar ─── */}
       <CommandHeader
         data={data}
         onTriggerDemo={handleTriggerDemo}
@@ -327,17 +327,18 @@ export default function DashboardPage() {
         onToggleLayer={handleToggleLayer}
       />
 
-      {/* ─── Main Stage ─── */}
-      <div className="flex-1 flex overflow-hidden relative">
-        {/* Left Icon Bar */}
+      {/* ─── Main Workspace Canvas ─── */}
+      <div className="flex flex-1 h-[calc(100vh-64px)] overflow-hidden relative">
+        {/* Left Side Navigation */}
         <IconBar
           activeTab={activeTab}
           onSelectTab={handleSelectTab}
           data={data}
+          onOpenSystemStatus={() => setIsSystemStatusOpen(true)}
         />
 
         {/* Center — Full-Bleed Map Canvas */}
-        <div className="flex-1 relative h-full">
+        <main className="flex-1 relative h-full bg-surface-container-lowest flex">
           <MapViewer
             data={data}
             selectedJunctionId={selectedJunctionId}
@@ -352,7 +353,7 @@ export default function DashboardPage() {
 
           {/* Floating Route Intelligence Panel */}
           {activeTab === "routes" && (
-            <div className="absolute top-4 left-4 w-[380px] glass-raised rounded-2xl shadow-panel z-30 max-h-[82vh] overflow-y-auto animate-slide-in-left">
+            <div className="absolute top-4 left-4 w-[400px] glass-raised rounded-xl shadow-2xl z-30 max-h-[82vh] overflow-y-auto animate-slide-in-left border border-grid-line">
               <RoutesPanel
                 onSelectRoute={(route) => setActiveRoute(route)}
                 activeRoute={activeRoute}
@@ -360,11 +361,11 @@ export default function DashboardPage() {
             </div>
           )}
 
-          {/* Floating Bottom Metrics Bar */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 animate-slide-in-up">
+          {/* Bottom Telemetry Bar */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 animate-slide-in-up">
             <BottomMetrics metrics={data?.metrics} />
           </div>
-        </div>
+        </main>
 
         {/* Right — Context Intelligence Drawer */}
         <ContextPanel

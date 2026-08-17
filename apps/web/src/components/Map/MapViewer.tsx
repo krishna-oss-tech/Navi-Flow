@@ -313,8 +313,8 @@ export const MapViewer: React.FC<MapViewerProps> = ({
     if (!map.current || !data) return;
 
     // 1. Junction Risk Markers
-    Object.values(data.junctionRisks).forEach((jr) => {
-      const markerKey = `junc_${jr.junctionId}`;
+    Object.values(data.junctionRisks).forEach((junction) => {
+      const markerKey = `junc_${junction.junctionId}`;
       let marker = markersRef.current[markerKey];
 
       if (!activeLayers.risk) {
@@ -325,122 +325,101 @@ export const MapViewer: React.FC<MapViewerProps> = ({
         return;
       }
 
-      const isCritical = jr.severity === "CRITICAL";
-      const isHigh = jr.severity === "HIGH";
-      const isSelected = selectedJunctionId === jr.junctionId;
+      const isSelected = selectedJunctionId === junction.junctionId;
+      const sevClass =
+        junction.severity === "CRITICAL"
+          ? "critical"
+          : junction.severity === "HIGH" || junction.severity === "MODERATE"
+          ? "moderate"
+          : junction.policeAssigned
+          ? "police"
+          : "";
 
-      const ringColor = isCritical
-        ? "border-red-500"
-        : isHigh
-        ? "border-orange-500"
-        : "border-emerald-500";
+      const iconName =
+        junction.severity === "CRITICAL"
+          ? "emergency"
+          : junction.severity === "HIGH" || junction.severity === "MODERATE"
+          ? "warning"
+          : junction.policeAssigned
+          ? "local_police"
+          : "adjust";
 
-      const bgColor = isCritical
-        ? "bg-red-500"
-        : isHigh
-        ? "bg-orange-500"
-        : "bg-emerald-500";
-
-      const glowStyle = isCritical
-        ? "box-shadow: 0 0 16px rgba(239,68,68,0.6)"
-        : isHigh
-        ? "box-shadow: 0 0 12px rgba(249,115,22,0.5)"
-        : "box-shadow: 0 0 8px rgba(34,197,94,0.35)";
+      const iconColor =
+        junction.severity === "CRITICAL"
+          ? "text-status-critical"
+          : junction.severity === "HIGH" || junction.severity === "MODERATE"
+          ? "text-status-warning"
+          : junction.policeAssigned
+          ? "text-primary"
+          : "text-status-success";
 
       let el = marker?.getElement();
       if (!el) {
         el = document.createElement("div");
-        el.className = "cursor-pointer transition-transform duration-200 hover:scale-115";
-        el.onclick = () => onSelectJunction(jr.junctionId);
-
+        el.className = "cursor-pointer transition-transform duration-150 hover:scale-110";
+        el.onclick = () => onSelectJunction(junction.junctionId);
         marker = new maplibregl.Marker({ element: el })
-          .setLngLat([jr.lon, jr.lat])
+          .setLngLat([junction.lon, junction.lat])
           .addTo(map.current!);
         markersRef.current[markerKey] = marker;
+      } else {
+        el.onclick = () => onSelectJunction(junction.junctionId);
       }
 
       el.innerHTML = `
-        <div class="relative flex items-center justify-center">
-          ${isCritical ? '<div class="absolute w-10 h-10 rounded-full bg-red-500/25 animate-ping"></div>' : ""}
-          <div
-            class="w-7 h-7 rounded-full border-2 ${ringColor} ${bgColor}/95 flex items-center justify-center text-[9px] font-black text-white backdrop-blur-sm ${
-              isSelected ? "ring-2 ring-white ring-offset-1 ring-offset-black" : ""
-            }"
-            style="${glowStyle}"
-          >
-            ${Math.round(jr.riskScore)}
-          </div>
+        <div class="map-marker ${sevClass} ${isSelected ? "ring-2 ring-primary ring-offset-2 ring-offset-[#121317]" : ""}" title="${junction.name}">
+          <span class="material-symbols-outlined text-[16px] ${iconColor}">${iconName}</span>
         </div>
       `;
     });
 
     // 2. Incident Markers
-    data.incidents.forEach((inc) => {
-      const markerKey = `inc_${inc.id}`;
-      let marker = markersRef.current[markerKey];
+    if (activeLayers.incidents && data.incidents) {
+      data.incidents.forEach((inc) => {
+        const markerKey = `inc_${inc.id}`;
+        let marker = markersRef.current[markerKey];
 
-      if (!activeLayers.incidents) {
-        if (marker) {
-          marker.remove();
-          delete markersRef.current[markerKey];
+        let el = marker?.getElement();
+        if (!el) {
+          el = document.createElement("div");
+          el.className = "cursor-pointer";
+          marker = new maplibregl.Marker({ element: el })
+            .setLngLat([inc.lon, inc.lat])
+            .addTo(map.current!);
+          markersRef.current[markerKey] = marker;
         }
-        return;
-      }
 
-      let el = marker?.getElement();
-      if (!el) {
-        el = document.createElement("div");
-        el.className = "cursor-pointer";
-        marker = new maplibregl.Marker({ element: el })
-          .setLngLat([inc.lon, inc.lat])
-          .addTo(map.current!);
-        markersRef.current[markerKey] = marker;
-      }
-
-      el.innerHTML = `
-        <div class="relative flex items-center justify-center">
-          <div class="absolute w-10 h-10 rounded-full bg-red-500/30 animate-ping"></div>
-          <div class="w-8 h-8 rounded-lg bg-red-600 border border-red-300/80 backdrop-blur-sm flex items-center justify-center text-white shadow-lg" style="box-shadow: 0 0 20px rgba(239,68,68,0.5); transform: rotate(45deg);">
-            <span style="transform: rotate(-45deg); font-size: 13px;">⚠️</span>
+        el.innerHTML = `
+          <div class="map-marker critical" title="${inc.title}">
+            <span class="material-symbols-outlined text-[16px] text-status-critical">warning</span>
           </div>
-        </div>
-      `;
-    });
+        `;
+      });
+    }
 
-    // 3. Police Officer Markers
-    data.officers.forEach((off) => {
-      const markerKey = `off_${off.id}`;
-      let marker = markersRef.current[markerKey];
+    // 3. Officer Markers
+    if (activeLayers.police && data.officers) {
+      data.officers.forEach((off) => {
+        const markerKey = `off_${off.id}`;
+        let marker = markersRef.current[markerKey];
 
-      if (!activeLayers.police) {
-        if (marker) {
-          marker.remove();
-          delete markersRef.current[markerKey];
+        let el = marker?.getElement();
+        if (!el) {
+          el = document.createElement("div");
+          el.className = "cursor-pointer";
+          marker = new maplibregl.Marker({ element: el })
+            .setLngLat([off.lon, off.lat])
+            .addTo(map.current!);
+          markersRef.current[markerKey] = marker;
         }
-        return;
-      }
 
-      let el = marker?.getElement();
-      if (!el) {
-        el = document.createElement("div");
-        el.className = "cursor-pointer hover:scale-115 transition-transform duration-200";
-        marker = new maplibregl.Marker({ element: el })
-          .setLngLat([off.lon, off.lat])
-          .addTo(map.current!);
-        markersRef.current[markerKey] = marker;
-      }
-
-      const isAssigned = !off.isAvailable;
-      el.innerHTML = `
-        <div class="w-7 h-7 rounded-lg ${
-          isAssigned ? "bg-sky-500/95 border-sky-300" : "bg-slate-800/90 border-slate-600"
-        } border backdrop-blur-sm flex items-center justify-center text-[12px] text-white shadow-md" style="${
-        isAssigned ? "box-shadow: 0 0 12px rgba(56,189,248,0.4)" : ""
-      }">
-          👮
-        </div>
-      `;
-    });
+        el.innerHTML = `
+          <div class="map-marker police" title="${off.name} (${off.rank})">
+            <span class="material-symbols-outlined text-[16px] text-primary">local_police</span>
+          </div>
+        `;
+      });
+    }
 
     // 4. CCTV Camera Markers
     if (data.cameras) {
@@ -459,7 +438,7 @@ export const MapViewer: React.FC<MapViewerProps> = ({
         let el = marker?.getElement();
         if (!el) {
           el = document.createElement("div");
-          el.className = "cursor-pointer hover:scale-115 transition-transform duration-200";
+          el.className = "cursor-pointer transition-transform duration-150 hover:scale-110";
           el.onclick = () => onSelectCamera?.(cam.cameraId);
           marker = new maplibregl.Marker({ element: el })
             .setLngLat([cam.lon, cam.lat])
@@ -470,40 +449,102 @@ export const MapViewer: React.FC<MapViewerProps> = ({
         }
 
         el.innerHTML = `
-          <div class="w-6 h-6 rounded-full bg-indigo-600/90 border border-indigo-300/60 backdrop-blur-sm flex items-center justify-center text-[10px] text-white shadow-md" style="box-shadow: 0 0 10px rgba(99,102,241,0.4)" title="${cam.name}">
-            📹
+          <div class="map-marker" style="border-color: rgba(0, 242, 255, 0.4); box-shadow: 0 0 10px rgba(0, 242, 255, 0.3);" title="${cam.name}">
+            <span class="material-symbols-outlined text-[15px] text-primary">videocam</span>
           </div>
         `;
       });
     }
   }, [data, activeLayers, selectedJunctionId, onSelectJunction, onSelectCamera]);
 
+  const handleZoomIn = () => map.current?.zoomIn();
+  const handleZoomOut = () => map.current?.zoomOut();
+  const handleRecenter = () => {
+    map.current?.flyTo({
+      center: [79.0882, 21.1458],
+      zoom: 13.2,
+      pitch: 42,
+      bearing: -15,
+      essential: true,
+    });
+  };
+
   return (
     <div className="absolute inset-0">
       <div ref={mapContainer} className="w-full h-full" />
 
-      {/* Floating Basemap Selector Controls */}
-      <div className="absolute top-4 right-14 z-20 flex items-center gap-1 bg-surface/90 backdrop-blur-md p-1 rounded-xl border border-border-subtle shadow-float select-none">
-        {(Object.keys(BASEMAP_CONFIG) as BasemapMode[]).map((mode) => {
-          const cfg = BASEMAP_CONFIG[mode];
-          const Icon = cfg.icon;
-          const isActive = basemapMode === mode;
-          return (
-            <button
-              key={mode}
-              onClick={() => handleSwitchBasemap(mode)}
-              title={cfg.label}
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-150 ${
-                isActive
-                  ? "bg-accent-blue text-slate-950 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
-              }`}
+      {/* Floating Map Controls — Stitch Top Right */}
+      <div className="absolute top-6 right-6 flex flex-col space-y-2 z-10 select-none">
+        {/* Basemap Pill Group */}
+        <div className="glass-panel rounded-full p-1 border border-grid-line flex items-center">
+          <button
+            onClick={() => handleSwitchBasemap("DARK")}
+            className={`px-4 py-1.5 rounded-full font-label-caps text-label-caps flex items-center justify-center min-w-[80px] transition-colors ${
+              basemapMode === "DARK"
+                ? "bg-primary text-on-primary"
+                : "text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            <span
+              className="material-symbols-outlined text-[16px] mr-1"
+              style={{ fontVariationSettings: basemapMode === "DARK" ? "'FILL' 1" : "'FILL' 0" }}
             >
-              <Icon className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{mode}</span>
+              dark_mode
+            </span>
+            DARK
+          </button>
+
+          <button
+            onClick={() => handleSwitchBasemap("STANDARD")}
+            className={`px-4 py-1.5 rounded-full font-label-caps text-label-caps flex items-center justify-center min-w-[80px] transition-colors ${
+              basemapMode === "STANDARD"
+                ? "bg-primary text-on-primary"
+                : "text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px] mr-1">light_mode</span>
+            STANDARD
+          </button>
+
+          <button
+            onClick={() => handleSwitchBasemap("SATELLITE")}
+            className={`px-4 py-1.5 rounded-full font-label-caps text-label-caps flex items-center justify-center min-w-[80px] transition-colors ${
+              basemapMode === "SATELLITE"
+                ? "bg-primary text-on-primary"
+                : "text-on-surface-variant hover:text-on-surface"
+            }`}
+          >
+            <span className="material-symbols-outlined text-[16px] mr-1">satellite_alt</span>
+            SATELLITE
+          </button>
+        </div>
+
+        {/* Zoom & Recenter Controls */}
+        <div className="flex justify-end mt-3">
+          <div className="glass-panel rounded border border-grid-line flex flex-col overflow-hidden">
+            <button
+              onClick={handleZoomIn}
+              title="Zoom In"
+              className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant hover:text-on-surface border-b border-grid-line transition-colors"
+            >
+              <span className="material-symbols-outlined">add</span>
             </button>
-          );
-        })}
+            <button
+              onClick={handleZoomOut}
+              title="Zoom Out"
+              className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant hover:text-on-surface border-b border-grid-line transition-colors"
+            >
+              <span className="material-symbols-outlined">remove</span>
+            </button>
+            <button
+              onClick={handleRecenter}
+              title="Recenter Nagpur ITMS"
+              className="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-variant hover:text-on-surface transition-colors"
+            >
+              <span className="material-symbols-outlined">my_location</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );
