@@ -166,6 +166,15 @@ async def get_cctv_frame(camera_id: str):
     frame_bytes = vision_pipeline.generate_jpeg_frame(camera_id)
     return Response(content=frame_bytes, media_type="image/jpeg")
 
+class AnalyzeFrameRequest(BaseModel):
+    cameraId: str
+    frame: Optional[str] = None
+    timestamp: Optional[str] = None
+
+@app.post("/api/cctv/analyze-frame")
+async def analyze_camera_frame(req: AnalyzeFrameRequest):
+    return vision_pipeline.analyze_uploaded_frame(req.cameraId, req.frame)
+
 class ConfigureCameraSourceRequest(BaseModel):
     cameraId: str
     sourceType: str = "webcam"  # webcam | rtsp | file | simulated
