@@ -8,6 +8,7 @@ import {
   Navigation,
   AlertTriangle,
   ShieldCheck,
+  Camera,
   FileText,
 } from "lucide-react";
 import { NetworkSummary } from "@/types";
@@ -19,6 +20,7 @@ export type NavTab =
   | "routes"
   | "incidents"
   | "police"
+  | "cctv"
   | "simulation"
   | "audit";
 
@@ -36,9 +38,9 @@ const navItems: {
   badgeColor?: string;
 }[] = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
-  { id: "traffic", label: "Traffic", icon: Activity },
-  { id: "risk", label: "Risk", icon: Flame },
-  { id: "routes", label: "Routes", icon: Navigation },
+  { id: "traffic", label: "Traffic Flow", icon: Activity },
+  { id: "risk", label: "Risk Matrix", icon: Flame },
+  { id: "routes", label: "Route Planner", icon: Navigation },
   {
     id: "incidents",
     label: "Incidents",
@@ -53,7 +55,8 @@ const navItems: {
     badgeKey: "recommendations",
     badgeColor: "bg-sky-500",
   },
-  { id: "audit", label: "Audit", icon: FileText },
+  { id: "cctv", label: "CCTV Vision", icon: Camera },
+  { id: "audit", label: "Audit Log", icon: FileText },
 ];
 
 export const IconBar: React.FC<IconBarProps> = ({

@@ -12,13 +12,16 @@ import { AuditModal } from "@/components/AuditModal";
 import { RoutesPanel } from "@/components/RoutesPanel";
 import { SystemStatusDrawer } from "@/components/SystemStatusDrawer";
 import { IncidentCenterDrawer } from "@/components/IncidentCenterDrawer";
+import { CctvDrawer } from "@/components/CctvDrawer";
 import { NetworkSummary, RouteCandidate, Incident } from "@/types";
 import { API_BASE_URL, WS_BASE_URL } from "@/utils/api";
+import { getNagpurFallbackSummary, getNagpurDisruptedSummary } from "@/utils/fallbackData";
 
 export default function DashboardPage() {
-  const [data, setData] = useState<NetworkSummary | null>(null);
+  const [data, setData] = useState<NetworkSummary>(getNagpurFallbackSummary());
   const [activeTab, setActiveTab] = useState<NavTab>("overview");
   const [selectedJunctionId, setSelectedJunctionId] = useState<string | null>("j_sitabuldi");
+  const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
   const [activeRoute, setActiveRoute] = useState<RouteCandidate | null>(null);
 
   // Modals & Drawers
@@ -27,6 +30,7 @@ export default function DashboardPage() {
   const [isAuditOpen, setIsAuditOpen] = useState(false);
   const [isSystemStatusOpen, setIsSystemStatusOpen] = useState(false);
   const [isIncidentsOpen, setIsIncidentsOpen] = useState(false);
+  const [isCctvOpen, setIsCctvOpen] = useState(false);
   const [simulationTargetJunction, setSimulationTargetJunction] = useState<string | null>(null);
 
   // Layer toggles
@@ -43,52 +47,90 @@ export default function DashboardPage() {
 
   // 1. Initial REST Fetch & WebSocket Connection
   useEffect(() => {
+    let isMounted = true;
+
     const fetchInitialData = async () => {
       try {
         const res = await fetch(`${API_BASE_URL}/api/network/summary`);
-        if (res.ok) {
+        if (res.ok && isMounted) {
           const json = await res.json();
           setData(json);
         }
       } catch (err) {
-        console.warn("Backend not reached yet, waiting for WebSocket connect...", err);
+        console.warn("Backend not reached yet, running on deterministic local baseline state...", err);
       }
     };
 
     fetchInitialData();
 
-    // Setup live WebSocket
+    // Setup live WebSocket with auto-reconnect
     let ws: WebSocket;
     const connectWs = () => {
-      ws = new WebSocket(WS_BASE_URL);
-      ws.onopen = () => {
-        console.log("WebSocket connected to NAVI-FLOW backend.");
-      };
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.type === "STATE_UPDATE" || msg.type === "INITIAL_STATE") {
-            setData(msg.data);
+      try {
+        ws = new WebSocket(WS_BASE_URL);
+        ws.onopen = () => {
+          console.log("WebSocket connected to NAVI-FLOW backend.");
+        };
+        ws.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === "STATE_UPDATE" || msg.type === "INITIAL_STATE") {
+              if (isMounted) setData(msg.data);
+            }
+          } catch (e) {
+            console.error("Error parsing WS payload", e);
           }
-        } catch (e) {
-          console.error("Error parsing WS payload", e);
-        }
-      };
-      ws.onclose = () => {
-        setTimeout(connectWs, 3000); // Auto reconnect
-      };
-      wsRef.current = ws;
+        };
+        ws.onclose = () => {
+          setTimeout(connectWs, 4000);
+        };
+        wsRef.current = ws;
+      } catch (e) {
+        console.warn("WebSocket init deferred:", e);
+      }
     };
 
     connectWs();
 
     return () => {
+      isMounted = false;
       ws?.close();
     };
   }, []);
 
   const handleToggleLayer = (layer: keyof typeof activeLayers) => {
     setActiveLayers((prev) => ({ ...prev, [layer]: !prev[layer] }));
+  };
+
+  // Comprehensive View & Tab Navigation Handler
+  const handleSelectTab = (tab: NavTab) => {
+    setActiveTab(tab);
+
+    if (tab === "overview") {
+      // Nominal view
+    } else if (tab === "traffic") {
+      setActiveLayers((prev) => ({ ...prev, traffic: true }));
+    } else if (tab === "risk") {
+      setActiveLayers((prev) => ({ ...prev, risk: true }));
+      setSelectedJunctionId((prev) => prev || "j_sitabuldi");
+    } else if (tab === "routes") {
+      setActiveLayers((prev) => ({ ...prev, routes: true }));
+    } else if (tab === "incidents") {
+      setActiveLayers((prev) => ({ ...prev, incidents: true }));
+      setIsIncidentsOpen(true);
+    } else if (tab === "police") {
+      setActiveLayers((prev) => ({ ...prev, police: true }));
+      const recJunc = data?.recommendations[0]?.targetJunctionId || "j_sitabuldi";
+      setSelectedJunctionId(recJunc);
+    } else if (tab === "cctv") {
+      setActiveLayers((prev) => ({ ...prev, cameras: true }));
+      setIsCctvOpen(true);
+    } else if (tab === "simulation") {
+      setSimulationTargetJunction(selectedJunctionId || "j_sitabuldi");
+      setIsSimulationOpen(true);
+    } else if (tab === "audit") {
+      setIsAuditOpen(true);
+    }
   };
 
   // Human-in-the-loop Dispatch Actions
@@ -102,10 +144,45 @@ export default function DashboardPage() {
       if (res.ok) {
         const summaryRes = await fetch(`${API_BASE_URL}/api/network/summary`);
         if (summaryRes.ok) setData(await summaryRes.json());
+        return;
       }
     } catch (e) {
-      console.error(e);
+      console.warn("Backend offline, updating local state for dispatch acceptance", e);
     }
+
+    // Local deterministic state update fallback
+    setData((prev) => {
+      const updated = { ...prev };
+      const rec = updated.recommendations.find((r) => r.recommendationId === recId);
+      if (rec) {
+        updated.recommendations = updated.recommendations.filter((r) => r.recommendationId !== recId);
+        updated.deployments.push({
+          deploymentId: `dep_${Date.now()}`,
+          recommendationId: recId,
+          officerId: rec.officerId,
+          officerName: rec.officerName,
+          junctionId: rec.targetJunctionId,
+          junctionName: rec.targetJunctionName,
+          status: "ACCEPTED",
+          assignedAt: new Date().toISOString(),
+          etaMinutes: rec.estimatedArrivalMinutes || 3.4,
+          riskReductionExpected: rec.expectedRiskReduction,
+          operatorNotes: "Accepted via Human-in-the-loop operator console.",
+        });
+        if (updated.junctionRisks[rec.targetJunctionId]) {
+          updated.junctionRisks[rec.targetJunctionId].policeAssigned = true;
+          updated.junctionRisks[rec.targetJunctionId].riskScore = Math.max(
+            30,
+            updated.junctionRisks[rec.targetJunctionId].riskScore - rec.expectedRiskReduction
+          );
+        }
+        const off = updated.officers.find((o) => o.id === rec.officerId);
+        if (off) off.isAvailable = false;
+        updated.metrics.activeDeploymentsCount = updated.deployments.length;
+        updated.metrics.availableOfficersCount = updated.officers.filter((o) => o.isAvailable).length;
+      }
+      return updated;
+    });
   };
 
   const handleOverrideRecommendation = async (recId: string, altOfficerId: string, reason: string) => {
@@ -122,10 +199,39 @@ export default function DashboardPage() {
       if (res.ok) {
         const summaryRes = await fetch(`${API_BASE_URL}/api/network/summary`);
         if (summaryRes.ok) setData(await summaryRes.json());
+        return;
       }
     } catch (e) {
-      console.error(e);
+      console.warn("Backend offline, updating local state for dispatch override", e);
     }
+
+    setData((prev) => {
+      const updated = { ...prev };
+      const rec = updated.recommendations.find((r) => r.recommendationId === recId);
+      const altOfficer = updated.officers.find((o) => o.id === altOfficerId);
+      if (rec && altOfficer) {
+        updated.recommendations = updated.recommendations.filter((r) => r.recommendationId !== recId);
+        updated.deployments.push({
+          deploymentId: `dep_ovr_${Date.now()}`,
+          recommendationId: recId,
+          officerId: altOfficer.id,
+          officerName: altOfficer.name,
+          junctionId: rec.targetJunctionId,
+          junctionName: rec.targetJunctionName,
+          status: "OVERRIDDEN",
+          assignedAt: new Date().toISOString(),
+          etaMinutes: 4.2,
+          riskReductionExpected: rec.expectedRiskReduction * 0.9,
+          operatorNotes: `Human operator override: Reassigned to ${altOfficer.name}. Reason: ${reason}`,
+          overrideReason: reason,
+        });
+        altOfficer.isAvailable = false;
+        if (updated.junctionRisks[rec.targetJunctionId]) {
+          updated.junctionRisks[rec.targetJunctionId].policeAssigned = true;
+        }
+      }
+      return updated;
+    });
   };
 
   const handleRejectRecommendation = async (recId: string) => {
@@ -138,26 +244,36 @@ export default function DashboardPage() {
       if (res.ok) {
         const summaryRes = await fetch(`${API_BASE_URL}/api/network/summary`);
         if (summaryRes.ok) setData(await summaryRes.json());
+        return;
       }
     } catch (e) {
-      console.error(e);
+      console.warn("Backend offline, updating local state for dispatch reject", e);
     }
+
+    setData((prev) => ({
+      ...prev,
+      recommendations: prev.recommendations.filter((r) => r.recommendationId !== recId),
+    }));
   };
 
   // Demo Showcase Triggers
   const handleTriggerDemo = async () => {
+    setSelectedJunctionId("j_sitabuldi");
     try {
-      setSelectedJunctionId("j_sitabuldi");
       const res = await fetch(`${API_BASE_URL}/api/demo/sitabuldi-accident`, {
         method: "POST",
       });
       if (res.ok) {
         const result = await res.json();
         setData(result.summary);
+        return;
       }
     } catch (e) {
-      console.error(e);
+      console.warn("Using deterministic client fallback for Sitabuldi accident scenario", e);
     }
+
+    // Client fallback applies the disrupted scenario directly
+    setData(getNagpurDisruptedSummary());
   };
 
   const handleResetDemo = async () => {
@@ -169,14 +285,17 @@ export default function DashboardPage() {
         const result = await res.json();
         setData(result.summary);
         setActiveRoute(null);
+        return;
       }
     } catch (e) {
-      console.error(e);
+      console.warn("Using deterministic client fallback for demo reset", e);
     }
+
+    setData(getNagpurFallbackSummary());
+    setActiveRoute(null);
   };
 
   const handleSelectIncident = (inc: Incident) => {
-    // Find matching junction for incident
     if (inc.affectedRoadIds.length > 0) {
       const junctionId = inc.affectedRoadIds[0].includes("wardha") ? "j_wardha_rd" : "j_sitabuldi";
       setSelectedJunctionId(junctionId);
@@ -213,15 +332,7 @@ export default function DashboardPage() {
         {/* Left Icon Bar */}
         <IconBar
           activeTab={activeTab}
-          onSelectTab={(tab) => {
-            setActiveTab(tab);
-            if (tab === "audit") setIsAuditOpen(true);
-            if (tab === "simulation") {
-              setSimulationTargetJunction(selectedJunctionId || "j_sitabuldi");
-              setIsSimulationOpen(true);
-            }
-            if (tab === "incidents") setIsIncidentsOpen(true);
-          }}
+          onSelectTab={handleSelectTab}
           data={data}
         />
 
@@ -231,6 +342,10 @@ export default function DashboardPage() {
             data={data}
             selectedJunctionId={selectedJunctionId}
             onSelectJunction={(jId) => setSelectedJunctionId(jId)}
+            onSelectCamera={(camId) => {
+              setSelectedCameraId(camId);
+              setIsCctvOpen(true);
+            }}
             activeRoute={activeRoute}
             activeLayers={activeLayers}
           />
@@ -286,6 +401,13 @@ export default function DashboardPage() {
         incidents={data?.incidents || []}
         onSelectIncident={handleSelectIncident}
         onSimulateIncident={handleSimulateIncident}
+      />
+      <CctvDrawer
+        isOpen={isCctvOpen}
+        onClose={() => setIsCctvOpen(false)}
+        data={data}
+        selectedCameraId={selectedCameraId}
+        onFocusCamera={(camId) => setSelectedCameraId(camId)}
       />
     </div>
   );

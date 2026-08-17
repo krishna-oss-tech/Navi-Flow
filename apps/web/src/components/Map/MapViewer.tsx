@@ -11,6 +11,7 @@ interface MapViewerProps {
   data: NetworkSummary | null;
   selectedJunctionId: string | null;
   onSelectJunction: (junctionId: string) => void;
+  onSelectCamera?: (cameraId: string) => void;
   activeRoute: RouteCandidate | null;
   activeLayers: {
     traffic: boolean;
@@ -39,9 +40,12 @@ const BASEMAP_CONFIG: Record<
     icon: Moon,
   },
   STANDARD: {
-    tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-    maxBrightness: 0.85,
-    contrast: 0.1,
+    tiles: [
+      "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+      "https://a.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    ],
+    maxBrightness: 0.95,
+    contrast: 0.05,
     saturation: 0.0,
     label: "Standard OSM",
     icon: Sun,
@@ -49,11 +53,12 @@ const BASEMAP_CONFIG: Record<
   SATELLITE: {
     tiles: [
       process.env.NEXT_PUBLIC_SATELLITE_TILE_URL ||
-        "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        "https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
     ],
-    maxBrightness: 0.9,
-    contrast: 0.15,
-    saturation: 0.1,
+    maxBrightness: 1.0,
+    contrast: 0.1,
+    saturation: 0.05,
     label: "Satellite Imagery",
     icon: Globe,
   },
@@ -62,9 +67,9 @@ const BASEMAP_CONFIG: Record<
       "https://a.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}@2x.png",
       "https://b.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}@2x.png",
     ],
-    maxBrightness: 0.45,
-    contrast: 0.35,
-    saturation: -0.6,
+    maxBrightness: 0.65,
+    contrast: 0.25,
+    saturation: -0.4,
     label: "Traffic Focused",
     icon: Layers,
   },
@@ -74,6 +79,7 @@ export const MapViewer: React.FC<MapViewerProps> = ({
   data,
   selectedJunctionId,
   onSelectJunction,
+  onSelectCamera,
   activeRoute,
   activeLayers,
 }) => {
@@ -208,15 +214,37 @@ export const MapViewer: React.FC<MapViewerProps> = ({
     if (!map.current) return;
 
     const cfg = BASEMAP_CONFIG[mode];
-    const source = map.current.getSource("basemap-source") as maplibregl.RasterTileSource;
-    if (source && (source as any).tiles) {
-      (source as any).tiles = cfg.tiles;
-      // Reload source tiles cleanly
+    try {
       if (map.current.getLayer("basemap-layer")) {
-        map.current.setPaintProperty("basemap-layer", "raster-brightness-max", cfg.maxBrightness);
-        map.current.setPaintProperty("basemap-layer", "raster-contrast", cfg.contrast);
-        map.current.setPaintProperty("basemap-layer", "raster-saturation", cfg.saturation);
+        map.current.removeLayer("basemap-layer");
       }
+      if (map.current.getSource("basemap-source")) {
+        map.current.removeSource("basemap-source");
+      }
+
+      map.current.addSource("basemap-source", {
+        type: "raster",
+        tiles: cfg.tiles,
+        tileSize: 256,
+        attribution: "© OpenStreetMap © CARTO © Esri",
+      });
+
+      const beforeLayer = map.current.getLayer("roads-glow") ? "roads-glow" : undefined;
+      map.current.addLayer(
+        {
+          id: "basemap-layer",
+          type: "raster",
+          source: "basemap-source",
+          paint: {
+            "raster-brightness-max": cfg.maxBrightness,
+            "raster-contrast": cfg.contrast,
+            "raster-saturation": cfg.saturation,
+          },
+        },
+        beforeLayer
+      );
+    } catch (e) {
+      console.warn("Notice: Switching basemap:", e);
     }
   };
 
@@ -432,20 +460,23 @@ export const MapViewer: React.FC<MapViewerProps> = ({
         if (!el) {
           el = document.createElement("div");
           el.className = "cursor-pointer hover:scale-115 transition-transform duration-200";
+          el.onclick = () => onSelectCamera?.(cam.cameraId);
           marker = new maplibregl.Marker({ element: el })
             .setLngLat([cam.lon, cam.lat])
             .addTo(map.current!);
           markersRef.current[markerKey] = marker;
+        } else {
+          el.onclick = () => onSelectCamera?.(cam.cameraId);
         }
 
         el.innerHTML = `
-          <div class="w-6 h-6 rounded-full bg-indigo-600/90 border border-indigo-300/60 backdrop-blur-sm flex items-center justify-center text-[10px] text-white shadow-md" style="box-shadow: 0 0 10px rgba(99,102,241,0.4)">
+          <div class="w-6 h-6 rounded-full bg-indigo-600/90 border border-indigo-300/60 backdrop-blur-sm flex items-center justify-center text-[10px] text-white shadow-md" style="box-shadow: 0 0 10px rgba(99,102,241,0.4)" title="${cam.name}">
             📹
           </div>
         `;
       });
     }
-  }, [data, activeLayers, selectedJunctionId, onSelectJunction]);
+  }, [data, activeLayers, selectedJunctionId, onSelectJunction, onSelectCamera]);
 
   return (
     <div className="absolute inset-0">
