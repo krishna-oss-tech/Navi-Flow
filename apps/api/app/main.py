@@ -73,6 +73,18 @@ app.add_middleware(
 
 # --- 1. Observability & Health Endpoints ---
 
+@app.get("/")
+async def root():
+    return {
+        "name": settings.APP_NAME,
+        "version": settings.APP_VERSION,
+        "status": "ONLINE",
+        "docs": "/docs",
+        "health": "/api/health",
+        "description": "Real-Time Traffic Intelligence, Optimization & Decision Support for Nagpur",
+    }
+
+
 @app.get("/api/health", response_model=SystemHealth)
 async def get_health():
     summary = system_state.get_summary()

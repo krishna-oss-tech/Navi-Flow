@@ -68,15 +68,21 @@ class SystemStateManager:
         """Full pipeline refresh: Ingest -> Fuse -> Congestion -> Risk -> Optimize -> Broadcast."""
         now_dt = datetime.now(timezone.utc)
         
-        # 1. Update Road States via Fusion
-        for seg_id, seg in self.road_segments.items():
-            # Midpoint coordinates for TomTom probe
+        # 1. Update Road States via Fusion (concurrent telemetry fetching)
+        seg_items = list(self.road_segments.items())
+        probe_tasks = []
+        for seg_id, seg in seg_items:
             coords = seg.geometry
             mid_idx = len(coords) // 2
             mid_lon, mid_lat = coords[mid_idx]
+            probe_tasks.append(tomtom_provider.fetch_flow_for_point(mid_lat, mid_lon, seg_id))
 
-            tomtom_obs = await tomtom_provider.fetch_flow_for_point(mid_lat, mid_lon, seg_id)
-            
+        tomtom_results = await asyncio.gather(*probe_tasks, return_exceptions=True)
+
+        for (seg_id, seg), tomtom_obs in zip(seg_items, tomtom_results):
+            if isinstance(tomtom_obs, Exception) or tomtom_obs is None:
+                tomtom_obs = None
+
             # Check for camera observation on connected junction
             cctv_obs = None
             for cam in self.cameras.values():
